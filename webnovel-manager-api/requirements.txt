@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pydantic
+motor
+python-dotenv
+pydantic-settings
+httpx
+beautifulsoup4
+lxml
+ebooklib==0.18.0
+beautifulsoup4==4.12.2
+httpx==0.26.0

@@ -1,0 +1,150 @@
+{
+  "novels": [
+    {
+      "id": 1,
+      "title": "The Beginning After The End",
+      "type": "manhwa",
+      "description": "King Grey has unrivaled strength, wealth, and prestige in a world governed by martial ability. However, solitude lingers closely behind those with great power. Beneath the glamorous exterior of a powerful king lurks the shell of man, devoid of purpose and will. Reincarnated into a new world filled with magic and monsters, the king has a second chance to relive his life. Correcting the mistakes of his past will not be his only challenge, however. Underneath the peace and prosperity of the new world is an undercurrent threatening to destroy everything he has worked for, questioning his role and reason for being born again.",
+      "author": "TurtleMe",
+      "artist": "Fuyuki23",
+      "lastUpdated": "2023-04-15T10:30:00Z",
+      "coverImage": "/images/novels/tbate.jpg",
+      "chapters": 420,
+      "source": "WebNovel.com",
+      "status": "Ongoing",
+      "genres": ["Action", "Adventure", "Fantasy", "Reincarnation"],
+      "rating": 4.8,
+      "views": 15000000,
+      "lastScraped": "2023-04-15T10:30:00Z",
+      "nextUpdate": "2023-04-16T10:30:00Z",
+      "recentChapters": [
+        { "id": 1, "novelId": 1, "number": 420, "title": "The Aftermath", "date": "2023-04-15T10:30:00Z", "read": false },
+        { "id": 2, "novelId": 1, "number": 419, "title": "Confrontation", "date": "2023-04-08T10:30:00Z", "read": true },
+        { "id": 3, "novelId": 1, "number": 418, "title": "Revelations", "date": "2023-04-01T10:30:00Z", "read": true },
+        { "id": 4, "novelId": 1, "number": 417, "title": "The Calm Before", "date": "2023-03-25T10:30:00Z", "read": true },
+        { "id": 5, "novelId": 1, "number": 416, "title": "Training Day", "date": "2023-03-18T10:30:00Z", "read": true }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Omniscient Reader's Viewpoint",
+      "type": "manhwa",
+      "description": "Only I know the end of this world. One day, our MC finds himself stuck in the world of his favorite webnovel. What does he do to survive? It is a world struck by catastrophe and danger all around. His edge? He knows the plot of the story to the end. Because he was the sole reader that stuck with it. Read his story to see how he survives!",
+      "author": "Sing-Shong",
+      "artist": "Sleepy-C",
+      "lastUpdated": "2023-04-14T08:15:00Z",
+      "coverImage": "/images/novels/orv.jpg",
+      "chapters": 156,
+      "source": "MangaDex",
+      "status": "Ongoing",
+      "genres": ["Action", "Adventure", "Fantasy", "Apocalypse"],
+      "rating": 4.7,
+      "views": 12000000,
+      "lastScraped": "2023-04-14T08:15:00Z",
+      "nextUpdate": "2023-04-21T08:15:00Z",
+      "recentChapters": [
+        { "id": 6, "novelId": 2, "number": 156, "title": "The Final Scenario", "date": "2023-04-14T08:15:00Z", "read": false },
+        { "id": 7, "novelId": 2, "number": 155, "title": "The Demon King", "date": "2023-04-07T08:15:00Z", "read": true },
+        { "id": 8, "novelId": 2, "number": 154, "title": "The Constellation's Wager", "date": "2023-03-31T08:15:00Z", "read": true },
+        { "id": 9, "novelId": 2, "number": 153, "title": "The Dokkaebi's Game", "date": "2023-03-24T08:15:00Z", "read": true },
+        { "id": 10, "novelId": 2, "number": 152, "title": "The Probability Storm", "date": "2023-03-17T08:15:00Z", "read": true }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Solo Leveling",
+      "type": "manhwa",
+      "description": "10 years ago, after 'the Gate' that connected the real world with the monster world opened, some of the ordinary, everyday people received the power to hunt monsters within the Gate. They are known as 'Hunters'. However, not all Hunters are powerful. My name is Sung Jin-Woo, an E-rank Hunter. I'm someone who has to risk his life in the lowliest of dungeons, the 'World's Weakest'. Having no skills whatsoever to display, I barely earned the required money by fighting in low-level dungeons… at least until I found a hidden dungeon with the hardest difficulty within the D-rank dungeons! In the end, as I was accepting death, I suddenly received a strange power, a quest log that only I could see, a secret to leveling up that only I know about! If I trained in accordance with my quests and hunted monsters, my level would rise. Changing from the weakest Hunter to the strongest S-rank Hunter!",
+      "author": "Chugong",
+      "artist": "DUBU",
+      "lastUpdated": "2023-04-10T14:45:00Z",
+      "coverImage": "/images/novels/solo-leveling.webp",
+      "chapters": 179,
+      "source": "Tapas",
+      "status": "Completed",
+      "genres": ["Action", "Adventure", "Fantasy", "Supernatural"],
+      "rating": 4.9,
+      "views": 25000000,
+      "lastScraped": "2023-04-10T14:45:00Z",
+      "nextUpdate": null,
+      "recentChapters": [
+        { "id": 11, "novelId": 3, "number": 179, "title": "Epilogue", "date": "2023-04-10T14:45:00Z", "read": false },
+        { "id": 12, "novelId": 3, "number": 178, "title": "The Final Battle", "date": "2023-04-03T14:45:00Z", "read": true },
+        { "id": 13, "novelId": 3, "number": 177, "title": "The Shadow Monarch", "date": "2023-03-27T14:45:00Z", "read": true },
+        { "id": 14, "novelId": 3, "number": 176, "title": "The Rulers", "date": "2023-03-20T14:45:00Z", "read": true },
+        { "id": 15, "novelId": 3, "number": 175, "title": "The Monarch of Destruction", "date": "2023-03-13T14:45:00Z", "read": true }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Reverend Insanity",
+      "type": "webnovel",
+      "description": "A transmigrator wakes up to find himself inside the body of Fang Yuan, a 16-year-old young man who has just died after being betrayed by his clan. Having lived 500 years in his past life, the transmigrator decides to use the name Fang Yuan as he embarks on his new life journey. With his experience and knowledge from his past life, he sets out to right the wrongs and take control of his own destiny in a world where humans cultivate to become immortal, the strong prey on the weak, and demons and beasts roam the land.",
+      "author": "Gu Zhen Ren",
+      "lastUpdated": "2023-04-12T11:20:00Z",
+      "coverImage": "/images/novels/reverend-insanity.jpeg",
+      "chapters": 2334,
+      "source": "NovelUpdates",
+      "status": "Hiatus",
+      "genres": ["Action", "Adventure", "Fantasy", "Mature", "Xuanhuan"],
+      "rating": 4.6,
+      "views": 8000000,
+      "lastScraped": "2023-04-12T11:20:00Z",
+      "nextUpdate": null,
+      "recentChapters": [
+        { "id": 16, "novelId": 4, "number": 2334, "title": "The Immortal Venerable", "date": "2023-04-12T11:20:00Z", "read": false },
+        { "id": 17, "novelId": 4, "number": 2333, "title": "Heaven's Will", "date": "2023-04-05T11:20:00Z", "read": true },
+        { "id": 18, "novelId": 4, "number": 2332, "title": "The Refinement Path", "date": "2023-03-29T11:20:00Z", "read": true },
+        { "id": 19, "novelId": 4, "number": 2331, "title": "The Sovereign Immortal Aperture", "date": "2023-03-22T11:20:00Z", "read": true },
+        { "id": 20, "novelId": 4, "number": 2330, "title": "The Time Path", "date": "2023-03-15T11:20:00Z", "read": true }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Early Years",
+      "type": "webnovel",
+      "description": "King Grey has unrivaled strength, wealth, and prestige in world governed through martial ability. However, solitude lingers closely behind those with great power. Beneath the glamorous exterior of a powerful king lurks the shell of man, devoid of purpose and will. Reincarnated into a new world filled with magic and monsters, the king has a second chance to relive his life. Correcting the mistakes of his past will not be his only challenge, however. Underneath the peace and prosperity of the new world is an undercurrent threatening to destroy everything he has worked for, questioning his role and reason for being born again.",
+      "author": "TurtleMe",
+      "lastUpdated": "2023-04-15T10:30:00Z",
+      "coverImage": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1506190670l/28705056.jpg",
+      "chapters": 0,
+      "source": "WebNovel.com",
+      "status": "Ongoing",
+      "genres": ["Fantasy", "Manga", "Fiction"],
+      "rating": 4.8,
+      "views": 1000000,
+      "lastScraped": "2023-04-15T10:30:00Z",
+      "nextUpdate": "2023-04-16T10:30:00Z",
+      "recentChapters": []
+    },
+    {
+      "id": 6,
+      "title": "Shadow Slave",
+      "type": "webnovel",
+      "description": "Growing up in poverty, Sunny never expected anything good from life. However, even he did not anticipate being chosen by the Nightmare Spell and becoming one of the Awakened - an elite group of people gifted with supernatural powers. Transported into a ruined magical world, he found himself facing against terrible monsters - and other Awakened - in a deadly battle of survival. What's worse, the shadow powers he received happened to possess a small, but potentially fatal side effect...",
+      "author": "Guiltythree",
+      "lastUpdated": "2023-04-15T10:30:00Z",
+      "coverImage": "",
+      "chapters": 0,
+      "source": "WebNovel.com",
+      "status": "Ongoing",
+      "genres": ["Fantasy", "Horror", "Manga"],
+      "rating": 4.7,
+      "views": 2000000,
+      "lastScraped": "2023-04-15T10:30:00Z",
+      "nextUpdate": "2023-04-16T10:30:00Z",
+      "recentChapters": []
+    }
+  ],
+  "chapters": [
+    {
+      "id": 1,
+      "novelId": 1,
+      "number": 420,
+      "title": "The Aftermath",
+      "date": "2023-04-15T10:30:00Z",
+      "read": false,
+      "content": "# Chapter 420: The Aftermath\n\nArthur stood at the edge of the cliff, overlooking the vast landscape that had once been a battlefield. The wind carried the scent of ash and blood, remnants of the war that had finally come to an end.\n\n\"It's over,\" he whispered, more to himself than to Sylvie, who stood silently beside him.\n\nThe dragon-like companion nudged his hand gently with her snout. *Not over. Just beginning.*\n\nHe smiled faintly at her words echoing in his mind. She was right, as always. This wasn't an end, but a new beginning for Dicathen, for the people who had survived, and for himself.\n\n\"Arthur!\" a familiar voice called from behind.\n\nHe turned to see Tessia running toward him, her silver hair flowing behind her like a banner. Despite everything they had been through, she still managed to smile, and it was that smile that had kept him going through the darkest times.\n\n\"The council is gathering,\" she said as she reached him. \"They're waiting for you.\"\n\nArthur nodded, taking one last look at the horizon."
+    }
+  ]
+}

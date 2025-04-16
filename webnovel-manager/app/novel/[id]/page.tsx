@@ -1,11 +1,12 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Calendar, Clock, Download, ExternalLink, RefreshCw, Settings } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ArrowLeft, BookOpen, Calendar, Clock, Download, Languages, ExternalLink, RefreshCw, Settings } from "lucide-react"
 import { use } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { novelsAPI } from "@/services/api"
+import { novelsAPI, chaptersAPI } from "@/services/api"
+import { useNovel } from "@/hooks/useNovels"
+import type { NovelDetail, Chapter } from "@/types"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,9 +16,15 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckCircle2 } from "lucide-react"
-
-
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface Novel {
   _id: string;
@@ -40,55 +47,40 @@ interface Novel {
   added_at: string;
   last_updated_api: string;
   last_updated_chapters: string;
+  last_scraped?: string;
+  next_update?: string;
+  update_schedule?: string;
 }
 
 export default function NovelDetail({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const [novel, setNovel] = useState<Novel | null>(null);
-  const [isReversed, setIsReversed] = useState(true);
-  const [activeTab, setActiveTab] = useState("information");
-  const [displayedChapters, setDisplayedChapters] = useState(30);
+  const { novel, chapters, loading, error, updateReadingProgress, isReversed, toggleSortOrder, fetchChaptersFromSource, fetchingChapters } = useNovel(resolvedParams.id);
+  const [activeTab, setActiveTab] = useState("info");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadedChapters, setLoadedChapters] = useState<Chapter[]>([]);
+  const [startChapter, setStartChapter] = useState<number>(1);
+  const [endChapter, setEndChapter] = useState<number>(1);
+  const chaptersRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-const chaptersRef = useRef<HTMLDivElement | null>(null);
-
-
+  // Initialize chapters when chapters data is loaded
   useEffect(() => {
-    const fetchNovel = async () => {
-      try {
-        const response = await fetch(`http://localhost:8001/api/v1/novels/${resolvedParams.id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch novel');
-        }
-        const data = await response.json();
-        setNovel(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (chapters && loadedChapters.length === 0) {
+      setLoadedChapters(chapters);
+    }
+  }, [chapters]);
 
-    fetchNovel();
-  }, [resolvedParams.id]);
-
+  // Load more chapters when scrolling
   useEffect(() => {
-    console.log("activeTab changed:", activeTab);
     const container = chaptersRef.current;
     if (!container || activeTab !== "chapters") return;
 
     const handleScroll = () => {
-      console.log("Scroll event triggered");
       const { scrollTop, scrollHeight, clientHeight } = container;
-      console.log("Scroll values:", { scrollTop, scrollHeight, clientHeight });
-      if (scrollHeight - scrollTop <= clientHeight * 1.2 && !loadingMore) {
-        console.log("Loading more chapters");
-        setLoadingMore(true);
-        setDisplayedChapters(prev => prev + 30);
-        setLoadingMore(false);
+      if (scrollHeight - scrollTop <= clientHeight * 1.2 && !loadingMore && hasMore) {
+        loadMoreChapters();
       }
     };
 
@@ -96,28 +88,121 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
     return () => {
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [loadingMore, activeTab]);
-  
+  }, [loadingMore, hasMore, activeTab]);
 
-  const handleDownloadChapter = async (chapterNumber: number) => {
+  const loadMoreChapters = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
     try {
-      const response = await novelsAPI.download(
-        novel!._id,
-        undefined,
-        undefined,
-        chapterNumber
+      const nextPage = currentPage + 1;
+      const response = await chaptersAPI.getByNovelId(
+        resolvedParams.id,
+        nextPage,
+        50,
+        isReversed ? "desc" : "asc"
+      );
+
+      if (response.success && response.data) {
+        const newChapters = response.data.chapters;
+        if (newChapters.length === 0) {
+          setHasMore(false);
+        } else {
+          setCurrentPage(nextPage);
+          setLoadedChapters(prev => {
+            const existingChapterNumbers = new Set(prev.map(ch => ch.chapter_number));
+            const uniqueNewChapters = newChapters.filter(ch => !existingChapterNumbers.has(ch.chapter_number));
+            return [...prev, ...uniqueNewChapters];
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error loading more chapters:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load more chapters",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Reset chapters when sort order changes
+  useEffect(() => {
+    if (chapters) {
+      setLoadedChapters(chapters);
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [isReversed, chapters]);
+
+  const handleDownloadChapter = async (chapterNumber: number, translate: boolean = false) => {
+    try {
+      const response = await chaptersAPI.downloadSingle(
+        resolvedParams.id,
+        chapterNumber,
+        translate ? "es" : "en"
+      )
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to download chapter")
+      }
+
+      // Handle the blob response
+      const blob = response.data
+      if (!blob) throw new Error("No data received")
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `chapter_${chapterNumber}${translate ? '_es' : ''}.epub`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: "Download started",
+        description: `Chapter ${chapterNumber} is being downloaded`,
+      })
+    } catch (error) {
+      console.error("Error downloading chapter:", error)
+      toast({
+        title: "Error",
+        description: "Failed to download chapter",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDownloadRange = async (translate: boolean = false) => {
+    if (!novel) return;
+
+    try {
+      const chapterNumbers = Array.from(
+        { length: endChapter - startChapter + 1 },
+        (_, i) => startChapter + i
+      );
+
+      const response = await chaptersAPI.downloadMultiple(
+        resolvedParams.id,
+        chapterNumbers,
+        translate ? "es" : "en"
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to download chapter");
+        throw new Error(response.error || "Failed to download chapters");
       }
 
-      // Create a blob URL and trigger download
+      // Handle the blob response
       const blob = response.data;
+      if (!blob) throw new Error("No data received");
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `chapter_${chapterNumber}.epub`;
+      a.download = `${novel.title}_chapters_${startChapter}-${endChapter}${translate ? '_es' : ''}.epub`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -125,13 +210,68 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
 
       toast({
         title: "Download started",
-        description: `Chapter ${chapterNumber} is being downloaded`,
+        description: `Chapters ${startChapter} to ${endChapter} are being downloaded`,
       });
     } catch (error) {
-      console.error("Error downloading chapter:", error);
+      console.error("Error downloading chapters:", error);
       toast({
         title: "Error",
-        description: "Failed to download chapter",
+        description: "Failed to download chapters",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadUnread = async (translate: boolean = false) => {
+    if (!chapters || chapters.length === 0) return
+
+    try {
+      const unreadChapters = chapters.filter(chapter => !chapter.read)
+      if (unreadChapters.length === 0) {
+        toast({
+          title: "No unread chapters",
+          description: "All chapters have been read",
+        })
+        return
+      }
+
+      const chapterNumbers = unreadChapters.map(chapter => chapter.chapter_number)
+      const response = await chaptersAPI.downloadMultiple(
+        resolvedParams.id,
+        chapterNumbers,
+        translate ? "es" : "en"
+      )
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to download unread chapters")
+      }
+
+      toast({
+        title: "Download started",
+        description: `Unread chapters are being downloaded`,
+      })
+    } catch (error) {
+      console.error("Error downloading unread chapters:", error)
+      toast({
+        title: "Error",
+        description: "Failed to download unread chapters",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleFetchFromSource = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await fetchChaptersFromSource();
+      toast({
+        title: "Success",
+        description: "Chapters updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update chapters",
         variant: "destructive",
       });
     }
@@ -144,7 +284,7 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       </main>
-    );
+    )
   }
 
   if (error || !novel) {
@@ -160,7 +300,7 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
           <h1 className="text-3xl font-bold">Novel not found</h1>
         </div>
       </main>
-    );
+    )
   }
 
   return (
@@ -185,14 +325,24 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
             />
             <div className="flex gap-2 mb-4 w-full justify-center">
               <Button asChild>
-                <Link href={`/reader/${novel._id}`}>Read Latest</Link>
+                <Link href={`/reader/${resolvedParams.id}`}>Read Latest</Link>
               </Button>
-              <Button variant="outline" size="icon">
-                <RefreshCw className="h-4 w-4" />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                onClick={(e) => handleFetchFromSource(e)}
+                disabled={fetchingChapters}
+              >
+                {fetchingChapters ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
                 <span className="sr-only">Update Now</span>
               </Button>
               <Button variant="outline" size="icon" asChild>
-                <Link href={`/novel/${novel._id}/settings`}>
+                <Link href={`/novel/${resolvedParams.id}/settings`}>
                   <Settings className="h-4 w-4" />
                   <span className="sr-only">Settings</span>
                 </Link>
@@ -203,18 +353,24 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
                 <div className="grid gap-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Status</span>
-                    <Badge variant={novel.status === "Ongoing" ? "default" : "secondary"}>{novel.status || "Unknown"}</Badge>
+                    <span className="text-sm font-medium">{novel.status || "Unknown"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Chapters</span>
+                    <span className="text-sm font-medium">{novel.total_chapters}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Source</span>
                     <div className="flex items-center">
-                      <span className="mr-1">{novel.source_name}</span>
+                      <span className="mr-1 text-sm font-medium">{novel.source_name}</span>
                       <ExternalLink className="h-3 w-3" />
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Last Updated</span>
-                    <span>{new Date(novel.last_updated_chapters).toLocaleDateString()}</span>
+                    <span className="text-sm font-medium">
+                      {new Date(novel.last_updated_chapters || "").toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -223,47 +379,97 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
         </div>
 
         <div className="md:col-span-2">
-          <Tabs defaultValue="information" onValueChange={setActiveTab}>
+          <Tabs defaultValue="info" onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="information">Information</TabsTrigger>
+              <TabsTrigger value="info">Information</TabsTrigger>
               <TabsTrigger value="chapters">Chapters</TabsTrigger>
               <TabsTrigger value="settings">Scraping Settings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="information" className="mt-4">
+            <TabsContent value="info" className="mt-4">
               <div className="grid gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold mb-2">Novel Information</h2>
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="grid gap-3">
-                        <div>
-                          <h3 className="font-medium">Title</h3>
-                          <p className="text-sm text-muted-foreground">{novel.title}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Author</h3>
-                          <p className="text-sm text-muted-foreground">{novel.author || 'Unknown'}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Description</h3>
-                          <p className="text-sm text-muted-foreground">{novel.description || 'No description available'}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Status</h3>
-                          <p className="text-sm text-muted-foreground">{novel.status || 'Unknown'}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Tags</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {novel.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary">{tag}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <h2 className="text-xl font-semibold mb-2">Synopsis</h2>
+                  <p className="text-muted-foreground">{novel.description || 'No description available'}</p>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">Details</h2>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <h3 className="text-sm font-medium">Author</h3>
+                      <p className="text-muted-foreground">{novel.author || 'Unknown'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">Genres</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {novel.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-sm">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">Reading Progress</h2>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Chapter {novel.read_chapters} of {novel.total_chapters}</span>
+                      <span>{Math.round(novel.reading_progress* 100) / 100}%</span>
+                    </div>
+                    <Progress value={novel.reading_progress} />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">Download Options</h2>
+                  <div className="grid gap-4">
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleDownloadRange(false)}>
+                        Download All
+                      </Button>
+                      <Button variant="outline" onClick={() => handleDownloadRange(true)}>
+                        Download All (Spanish)
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleDownloadUnread(false)}>
+                        Download Unread
+                      </Button>
+                      <Button variant="outline" onClick={() => handleDownloadUnread(true)}>
+                        Download Unread (Spanish)
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={novel?.total_chapters}
+                        value={startChapter}
+                        onChange={(e) => setStartChapter(Number(e.target.value))}
+                        className="w-24 px-2 py-1 border rounded"
+                      />
+                      <span>to</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={novel?.total_chapters}
+                        value={endChapter}
+                        onChange={(e) => setEndChapter(Number(e.target.value))}
+                        className="w-24 px-2 py-1 border rounded"
+                      />
+                      <Button onClick={() => handleDownloadRange(false)}>
+                        Download Range
+                      </Button>
+                      <Button variant="outline" onClick={() => handleDownloadRange(true)}>
+                        Download Range (Spanish)
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -271,15 +477,13 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
             <TabsContent value="chapters" className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Chapters</h2>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsReversed(!isReversed)}
-                  >
-                    {isReversed ? 'Show Oldest First' : 'Show Newest First'}
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSortOrder}
+                >
+                  {isReversed ? 'Show Oldest First' : 'Show Newest First'}
+                </Button>
               </div>
               <div className="overflow-auto max-h-[600px] chapters-container" ref={chaptersRef}>
                 <Table>
@@ -292,32 +496,59 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...novel.chapters]
-                      .sort((a, b) => isReversed ? b.chapter_number - a.chapter_number : a.chapter_number - b.chapter_number)
-                      .slice(0, displayedChapters)
-                      .map((chapter) => (
+                    {loadedChapters.length > 0 ? (
+                      loadedChapters.map((chapter) => (
                         <TableRow key={chapter.chapter_number}>
                           <TableCell>{chapter.chapter_number}</TableCell>
                           <TableCell>{chapter.chapter_title || chapter.title}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {chapter.read && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                              {chapter.downloaded && <Download className="h-4 w-4 text-blue-500" />}
+                              {chapter.read ? (
+                                <Badge variant="default" className="bg-green-500 hover:bg-green-600">Read</Badge>
+                              ) : (
+                                <Badge variant="secondary">Unread</Badge>
+                              )}
+                             
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadChapter(chapter.chapter_number)}
-                            >
-                              Download
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDownloadChapter(chapter.chapter_number)}
+                              >
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">Download</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDownloadChapter(chapter.chapter_number, true)}
+                              >
+                                <Languages className="h-4 w-4" />
+                                <span className="sr-only">Download Spanish</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center">
+                          {loading ? "Loading chapters..." : "No chapters available"}
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
+                {loadingMore && (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -330,15 +561,37 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
                       <div className="grid gap-3">
                         <div className="flex justify-between items-center">
                           <div>
-                            <h3 className="font-medium">Last Updated</h3>
+                            <h3 className="font-medium">Update Schedule</h3>
+                            <p className="text-sm text-muted-foreground">Check for new chapters daily</p>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            Change
+                          </Button>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="font-medium">Last Scraped</h3>
                             <p className="text-sm text-muted-foreground flex items-center">
                               <Calendar className="h-3 w-3 mr-1" />
-                              {new Date(novel.last_updated_api).toLocaleDateString()}
+                              {new Date(novel?.last_scraped || novel?.last_updated_api || "").toLocaleDateString()}
                               <Clock className="h-3 w-3 mx-1" />
-                              {new Date(novel.last_updated_api).toLocaleTimeString()}
+                              {new Date(novel?.last_scraped || novel?.last_updated_api || "").toLocaleTimeString()}
                             </p>
                           </div>
                           <Button size="sm">Update Now</Button>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="font-medium">Source URL</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {novel?.source_url}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            Edit
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -350,5 +603,5 @@ const chaptersRef = useRef<HTMLDivElement | null>(null);
         </div>
       </div>
     </main>
-  );
+  )
 }

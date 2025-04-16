@@ -13,37 +13,71 @@ export type AuthState = {
   error: string | null
 }
 
-export type Novel = {
-  id: number
-  title: string
-  type: "manhwa" | "webnovel"
-  description: string
-  author: string
-  artist?: string
-  lastUpdated: string
-  coverImage: string
-  chapters: number
-  source: string
-  status: "Ongoing" | "Completed" | "Hiatus" | "Cancelled"
-  genres: string[]
-  rating?: number
-  views?: number
-  lastScraped?: string
-  nextUpdate?: string
-  recentChapters?: Chapter[]
-  isInLibrary?: boolean
+export interface Chapter {
+  title: string;
+  chapter_number: number;
+  chapter_title: string | null;
+  url: string;
+  read: boolean;
+  downloaded: boolean;
 }
 
-export type Chapter = {
-  id: number
-  novelId: number
-  number: number
-  chapter_number: number
-  title: string
-  date: string
-  read: boolean
-  content?: string
-  images?: string[]
+export interface Novel {
+  _id: string;
+  title: string;
+  author: string | null;
+  cover_image_url: string | null;
+  description: string | null;
+  source_url: string;
+  source_name: string;
+  tags: string[];
+  status: string | null;
+  chapters: Chapter[];
+  added_at: string;
+  last_updated_api: string;
+  last_updated_chapters: string | null;
+  last_scraped?: string;
+  next_update?: string;
+  update_schedule?: string;
+}
+
+export interface NovelSummary {
+  _id: string;
+  title: string;
+  author: string | null;
+  cover_image_url: string | null;
+  status: string | null;
+  total_chapters: number;
+  last_chapter_number: number;
+  read_chapters: number;
+  downloaded_chapters: number;
+  last_updated_chapters: string | null;
+  added_at: string;
+}
+
+export interface NovelDetail extends NovelSummary {
+  description: string | null;
+  source_url: string;
+  source_name: string;
+  tags: string[];
+  reading_progress: number;
+  chapters: Chapter[];
+  last_updated_api: string;
+  last_scraped?: string;
+  next_update?: string;
+  update_schedule?: string;
+}
+
+export interface ChapterDownloadResponse {
+  success: boolean;
+  message: string;
+  updated_chapters: number[];
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 export type Source = {
@@ -101,11 +135,12 @@ export type AppSettings = {
   }
 }
 
-export type ApiResponse<T> = {
-  success: boolean
-  data?: T
-  error?: string
-  message?: string
-}
-
 export type QueryStatus = "idle" | "loading" | "success" | "error"
+
+export interface ChapterListResponse {
+  chapters: Chapter[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}

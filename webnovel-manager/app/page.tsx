@@ -12,7 +12,6 @@ import Link from "next/link"
 export default function Home() {
   const { novels, loading, error, refreshNovels } = useNovels()
 
-
   return (
     <main className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
@@ -28,7 +27,7 @@ export default function Home() {
           </Button>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Add Source
+            Add Novel
           </Button>
         </div>
       </div>
@@ -36,7 +35,6 @@ export default function Home() {
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="manhwa">Manhwa</TabsTrigger>
           <TabsTrigger value="updates">Recent Updates</TabsTrigger>
         </TabsList>
 
@@ -59,17 +57,17 @@ export default function Home() {
               ))
             ) : (
               novels.map((novel: Novel) => (
-                <Card key={novel.id}>
+                <Card key={novel._id}>
                   <CardHeader>
                     <CardTitle>{novel.title}</CardTitle>
                     <CardDescription>
-                      {novel.type} • {novel.status}
+                      {novel.author || "Unknown Author"} • {novel.status || "Unknown Status"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {novel.coverImage ? (
+                    {novel.cover_image_url ? (
                       <img
-                        src={novel.coverImage}
+                        src={novel.cover_image_url}
                         alt={novel.title}
                         className="w-full aspect-[2/3] object-cover rounded-md"
                       />
@@ -81,65 +79,12 @@ export default function Home() {
                   </CardContent>
                   <CardFooter className="flex justify-between">
                     <Button variant="outline" asChild>
-                      <Link href={`/novel/${novel.id}`}>Details</Link>
+                      <Link href={`/novel/${novel._id}`}>Details</Link>
                     </Button>
                     <Button>Update</Button>
                   </CardFooter>
                 </Card>
               ))
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="manhwa">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-32 w-full" />
-                  </CardContent>
-                  <CardFooter>
-                    <Skeleton className="h-10 w-full" />
-                  </CardFooter>
-                </Card>
-              ))
-            ) : (
-              novels
-                .filter((novel: Novel) => novel.type === "manhwa")
-                .map((novel: Novel) => (
-                  <Card key={novel.id}>
-                    <CardHeader>
-                      <CardTitle>{novel.title}</CardTitle>
-                      <CardDescription>
-                        {novel.type} • {novel.status}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {novel.coverImage ? (
-                        <img
-                          src={novel.coverImage}
-                          alt={novel.title}
-                          className="w-full aspect-[2/3] object-cover rounded-md"
-                        />
-                      ) : (
-                        <div className="w-full aspect-[2/3] bg-gray-200 rounded-md flex items-center justify-center">
-                          <span className="text-gray-500">No cover image</span>
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <Button variant="outline" asChild>
-                        <Link href={`/novel/${novel.id}`}>Details</Link>
-                      </Button>
-                      <Button>Update</Button>
-                    </CardFooter>
-                  </Card>
-                ))
             )}
           </div>
         </TabsContent>
@@ -165,21 +110,21 @@ export default function Home() {
               [...novels]
                 .sort(
                   (a: Novel, b: Novel) =>
-                    new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+                    new Date(b.last_updated_chapters || "").getTime() - new Date(a.last_updated_chapters || "").getTime(),
                 )
                 .slice(0, 4)
                 .map((novel: Novel) => (
-                  <Card key={novel.id}>
+                  <Card key={novel._id}>
                     <CardHeader>
                       <CardTitle>{novel.title}</CardTitle>
                       <CardDescription>
-                        {novel.type} • {novel.status}
+                        {novel.author || "Unknown Author"} • {novel.status || "Unknown Status"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {novel.coverImage ? (
+                      {novel.cover_image_url ? (
                         <img
-                          src={novel.coverImage}
+                          src={novel.cover_image_url}
                           alt={novel.title}
                           className="w-full aspect-[2/3] object-cover rounded-md"
                         />
@@ -191,7 +136,7 @@ export default function Home() {
                     </CardContent>
                     <CardFooter className="flex justify-between">
                       <Button variant="outline" asChild>
-                        <Link href={`/novel/${novel.id}`}>Details</Link>
+                        <Link href={`/novel/${novel._id}`}>Details</Link>
                       </Button>
                       <Button>Update</Button>
                     </CardFooter>

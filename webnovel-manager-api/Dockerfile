@@ -31,17 +31,19 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
-RUN playwright install chromium
-RUN playwright install-deps
-
-# Copy the rest of the application
-COPY . .
-
 # Create a non-root user
 RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
+
+# Install Playwright browsers as root first
+RUN playwright install chromium
+RUN playwright install-deps
+
+# Switch to non-root user
 USER appuser
+
+# Copy the rest of the application
+COPY --chown=appuser:appuser . .
 
 EXPOSE 8000
 

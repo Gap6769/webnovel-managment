@@ -6,11 +6,11 @@ services:
       context: ./webnovel-manager
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://backend:8001
+        - NEXT_PUBLIC_API_URL=http://backend:8000
     ports:
       - "8080:8080"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8001
+      - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
       - backend
     networks:

@@ -33,18 +33,30 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a non-root user
 RUN useradd -m appuser
-RUN chown -R appuser:appuser /app
 
-# Install Playwright browsers as root first
-RUN playwright install
+# Set up Playwright environment
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
+RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH}
+RUN chown -R appuser:appuser ${PLAYWRIGHT_BROWSERS_PATH}
+
+# Switch to appuser for Playwright installation
+USER appuser
+
+# Install Playwright browsers
 RUN playwright install chromium
 RUN playwright install-deps
 
-# Switch to non-root user
-USER appuser
+# Switch back to root for final setup
+USER root
+
+# Set up application permissions
+RUN chown -R appuser:appuser /app
 
 # Copy the rest of the application
 COPY --chown=appuser:appuser . .
+
+# Switch to appuser for running the application
+USER appuser
 
 EXPOSE 8000
 

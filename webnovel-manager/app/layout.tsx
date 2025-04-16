@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { QueryClientProvider } from "@/components/providers/query-client-provider"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -8,17 +8,22 @@ import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#ffffff",
+}
+
 export const metadata: Metadata = {
   title: "WebNovel Manager",
   description: "Manage and track your favorite webnovels and manhwas",
   manifest: "/manifest.json",
-  themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "WebNovel Manager",
   },
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
   generator: 'v0.dev'
 }
 

@@ -20,14 +20,21 @@ export function useSettings() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const response = await settingsAPI.get()
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch settings")
+      // Check if we're in the browser environment
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem("webnovel-manager-auth-token")
+        if (!token) return null
+        
+        const response = await settingsAPI.get()
+        if (!response.success) {
+          throw new Error(response.error || "Failed to fetch settings")
+        }
+        return response.data
       }
-      return response.data
+      return null
     },
-    // Only fetch from API if user is authenticated
-    enabled: !!localStorage.getItem("webnovel-manager-auth-token"),
+    // Only fetch from API if we're in the browser
+    enabled: typeof window !== 'undefined',
   })
 
   // Update settings in store when data is fetched

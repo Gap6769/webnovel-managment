@@ -1,16 +1,15 @@
-import type { ApiResponse } from "@/types"
+import type { Novel, NovelDetail, Chapter, ChapterDownloadResponse, ApiResponse, ChapterListResponse } from "@/types"
 import { API_BASE_URL, ERROR_MESSAGES, STORAGE_KEYS } from "@/constants"
 
 // Generic API client with error handling
 async function client<T>(
   endpoint: string,
-  { data, token, headers: customHeaders, ...customConfig }: any = {},
+  { data, headers: customHeaders, ...customConfig }: any = {},
 ): Promise<ApiResponse<T>> {
   const config = {
     method: data ? "POST" : "GET",
     body: data ? JSON.stringify(data) : undefined,
     headers: {
-      Authorization: token ? `Bearer ${token}` : "",
       "Content-Type": "application/json",
       ...customHeaders,
     },
@@ -20,27 +19,11 @@ async function client<T>(
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config)
 
-    // Handle network errors
     if (!response.ok) {
-      if (response.status === 401) {
-        // Handle unauthorized
-        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN)
-        return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED }
-      }
-
-      if (response.status === 404) {
-        return { success: false, error: ERROR_MESSAGES.NOT_FOUND }
-      }
-
-      if (response.status >= 500) {
-        return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
-      }
-
-      // Try to get error message from response
       const errorData = await response.json().catch(() => ({}))
       return {
         success: false,
-        error: errorData.message || errorData.error || ERROR_MESSAGES.DEFAULT,
+        error: errorData.message || errorData.error || "An error occurred",
       }
     }
 
@@ -55,9 +38,8 @@ async function client<T>(
     const data = await response.json()
     return { success: true, data }
   } catch (error) {
-    // Handle fetch errors (network issues, etc.)
     console.error("API Error:", error)
-    return { success: false, error: ERROR_MESSAGES.NETWORK_ERROR }
+    return { success: false, error: "Network error occurred" }
   }
 }
 
@@ -85,13 +67,16 @@ export const novelsAPI = {
     return client<Novel[]>("/novels")
   },
   getById: async (id: string) => {
-    return client<Novel>(`/novels/${id}`)
+    return client<NovelDetail>(`/novels/${id}`)
   },
   create: async (novelData: any) => {
     return client<Novel>("/novels", { data: novelData })
   },
   update: async (id: string, novelData: any) => {
-    return client<Novel>(`/novels/${id}`, { method: "PUT", data: novelData })
+    return client<NovelDetail>(`/novels/${id}`, { 
+      method: "PATCH", 
+      data: novelData 
+    })
   },
   delete: async (id: string) => {
     return client<void>(`/novels/${id}`, { method: "DELETE" })
@@ -100,38 +85,114 @@ export const novelsAPI = {
     id: string,
     startChapter?: number,
     endChapter?: number,
-    singleChapter?: number
+    singleChapter?: number,
+    translate: boolean = false
   ) => {
     const params = new URLSearchParams()
     if (startChapter !== undefined) params.append("start_chapter", startChapter.toString())
     if (endChapter !== undefined) params.append("end_chapter", endChapter.toString())
     if (singleChapter !== undefined) params.append("single_chapter", singleChapter.toString())
+    if (translate) params.append("translate", "true")
 
     return client<Blob>(`/novels/${id}/download?${params.toString()}`, {
       headers: {
         "Accept": "application/epub+zip"
       }
     })
+  },
+  updateReadingProgress: async (id: string, currentChapter: number) => {
+    return client<NovelDetail>(`/novels/${id}/reading-progress`, {
+      method: "PATCH",
+      data: { current_chapter: currentChapter }
+    })
   }
 }
 
 // Chapters API
 export const chaptersAPI = {
-  getByNovelId: async (novelId: number) => {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
-    return client(`/novels/${novelId}/chapters`, { token })
+  getByNovelId: async (
+    novelId: string,
+    page: number = 1,
+    pageSize: number = 50,
+    sortOrder: string = "desc"
+  ): Promise<ApiResponse<ChapterListResponse>> => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/novels/${novelId}/chapters?page=${page}&page_size=${pageSize}&sort_order=${sortOrder}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return {
+          success: false,
+          error: error.message || "Failed to fetch chapters",
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      console.error("Error fetching chapters:", error);
+      return {
+        success: false,
+        error: "Failed to fetch chapters",
+      };
+    }
   },
-  getById: async (novelId: number, chapterId: number) => {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
-    return client(`/novels/${novelId}/chapters/${chapterId}`, { token })
-  },
-  markAsRead: async (novelId: number, chapterId: number, read: boolean) => {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
-    return client(`/novels/${novelId}/chapters/${chapterId}/read`, {
-      method: "PUT",
-      data: { read },
-      token,
+  downloadSingle: async (novelId: string, chapterNumber: number, language: string = "en") => {
+    return client<Blob>(`/novels/${novelId}/chapters/${chapterNumber}?language=${language}`, {
+      headers: {
+        "Accept": "application/epub+zip"
+      }
     })
+  },
+  downloadMultiple: async (novelId: string, chapterNumbers: number[], language: string = "en") => {
+    return client<Blob>(`/novels/${novelId}/chapters/download?language=${language}`, {
+      method: "POST",
+      data: chapterNumbers,
+      headers: {
+        "Accept": "application/epub+zip"
+      }
+    })
+  },
+  fetchFromSource: async (novelId: string): Promise<ApiResponse<ChapterListResponse>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novels/${novelId}/chapters/fetch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        return {
+          success: false,
+          error: error.message || "Failed to fetch chapters from source",
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      console.error('Error fetching chapters from source:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch chapters from source',
+      };
+    }
   },
 }
 

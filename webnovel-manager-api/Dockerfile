@@ -36,6 +36,7 @@ RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
 
 # Install Playwright browsers as root first
+RUN playwright install
 RUN playwright install chromium
 RUN playwright install-deps
 

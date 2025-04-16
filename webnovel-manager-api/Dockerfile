@@ -39,15 +39,27 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH}
 RUN chown -R appuser:appuser ${PLAYWRIGHT_BROWSERS_PATH}
 
-# Switch to appuser for Playwright installation
-USER appuser
-
-# Install Playwright browsers
-RUN playwright install chromium
-RUN playwright install-deps
-
-# Switch back to root for final setup
-USER root
+# Install Playwright dependencies as root
+RUN apt-get update && apt-get install -y \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set up application permissions
 RUN chown -R appuser:appuser /app
@@ -55,9 +67,15 @@ RUN chown -R appuser:appuser /app
 # Copy the rest of the application
 COPY --chown=appuser:appuser . .
 
-# Switch to appuser for running the application
+# Switch to appuser
 USER appuser
+
+# Create startup script
+RUN echo '#!/bin/sh\n\
+playwright install chromium\n\
+uvicorn app.main:app --host 0.0.0.0 --port 8000' > /app/start.sh && \
+chmod +x /app/start.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["/app/start.sh"] 

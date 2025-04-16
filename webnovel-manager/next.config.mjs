@@ -32,13 +32,22 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:8080', 'localhost:8000'],
+    },
   },
   webpack: (config) => {
     config.module.rules.push({
       test: /\.epub$/,
       type: 'asset/resource',
     })
+    config.resolve = {
+      ...config.resolve,
+      alias: {
+        ...config.resolve?.alias,
+        '@': '.',
+      },
+    }
     return config
   },
   output: 'standalone',

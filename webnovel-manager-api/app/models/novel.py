@@ -103,3 +103,35 @@ class NovelPublic(NovelInDB):
     # Exclude MongoDB specific fields if needed for public responses
     # exclude chapters from the response
     chapters: Optional[List[Chapter]] = None
+
+class NovelSummary(BaseModel):
+    id: PyObjectId = Field(alias="_id")
+    title: str
+    author: Optional[str] = None
+    cover_image_url: Optional[HttpUrl] = None
+    status: Optional[str] = None
+    total_chapters: int
+    last_chapter_number: int
+    read_chapters: int
+    downloaded_chapters: int
+    last_updated_chapters: Optional[datetime] = None
+    added_at: datetime
+
+class NovelDetail(NovelSummary):
+    description: Optional[str] = None
+    source_url: HttpUrl
+    source_name: str
+    tags: List[str] = []
+    reading_progress: float  # Percentage of read chapters
+
+class ChapterListResponse(BaseModel):
+    chapters: List[Chapter]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+class ChapterDownloadResponse(BaseModel):
+    success: bool
+    message: str
+    updated_chapters: List[int]  # List of chapter numbers that were updated

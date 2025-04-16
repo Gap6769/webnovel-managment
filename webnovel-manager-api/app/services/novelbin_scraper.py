@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import HttpUrl
 from ..models.novel import Chapter
 from playwright.async_api import async_playwright
+import re
 
 class NovelBinScraper:
     BASE_URL = "https://novelbin.com"
@@ -88,7 +89,7 @@ class NovelBinScraper:
                     continue
                     
                 chapter_url = link['href']
-                chapter_title = link.select_one('.chapter-title').text.strip()
+                chapter_title = link.text.strip()
                 
                 # Extract chapter number from title
                 try:
@@ -128,7 +129,26 @@ class NovelBinScraper:
             for element in content_div.select('script, style, iframe, noscript'):
                 element.decompose()
             
+            # Remove the unlock-buttons div specifically
+            for element in content_div.select('.unlock-buttons'):
+                element.decompose()
+            
             # Get the text content
             content = content_div.get_text(separator='\n\n', strip=True)
+            
+            # Remove unwanted text patterns
+            unwanted_patterns = [
+                r"Enhance your reading experience by removing ads.*",
+                r"This material may be protected by copyright.*",
+                r"Excerpt From.*",
+                r"Remove Ads From.*"
+            ]
+            
+            for pattern in unwanted_patterns:
+                content = re.sub(pattern, '', content, flags=re.IGNORECASE | re.DOTALL)
+            
+            # Clean up extra whitespace
+            content = re.sub(r'\n\s*\n', '\n\n', content)
+            content = content.strip()
             
             return content 

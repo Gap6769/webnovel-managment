@@ -8,6 +8,7 @@ import re # Import regex module
 import time # For timing operations
 import asyncio # For timeout handling
 from .novelbin_scraper import NovelBinScraper
+from .pastebin_tbate_scraper import PastebinTBATEScraper
 
 class ScraperError(Exception):
     """Custom exception for scraping errors."""
@@ -191,10 +192,10 @@ def parse_chapters_pastebin_tbate(raw_text_content: str, chapter_url: str) -> Tu
     # Return both the chapters found on this page and the URL to the next chapter (if any)
     return chapters, next_chapter_url
 
-# --- Scraper Registry --- 
+# Scraper registry
 SOURCE_SCRAPERS = {
     "example_source": parse_chapters_example,
-    "pastebin_tbate": parse_chapters_pastebin_tbate,
+    "pastebin_tbate": PastebinTBATEScraper(),
     "novelbin": NovelBinScraper(),  # Create instance of NovelBinScraper
 }
 
@@ -236,76 +237,18 @@ async def scrape_chapters_for_novel(
     # Normalize source_name to lowercase for lookup
     source_name_lower = source_name.lower()
     
-    parser = SOURCE_SCRAPERS.get(source_name_lower)
-    if not parser:
-        print(f"Error: No parser available for source: {source_name_lower}")
-        print(f"Available parsers: {list(SOURCE_SCRAPERS.keys())}")
-        raise ScraperError(f"No parser available for source: {source_name}")
+    scraper = SOURCE_SCRAPERS.get(source_name_lower)
+    if not scraper:
+        print(f"Error: No scraper available for source: {source_name_lower}")
+        print(f"Available scrapers: {list(SOURCE_SCRAPERS.keys())}")
+        raise ScraperError(f"No scraper available for source: {source_name}")
 
     try:
-        # For NovelBin scraper, call its async method directly
-        if isinstance(parser, NovelBinScraper):
-            chapters = await parser.get_chapters(source_url, max_chapters)
-            return chapters
-            
-        # For other scrapers, use the existing flow
-        print(f"Fetching content from {source_url}...")
-        content = await fetch_html(source_url, timeout=15.0)  # 15-second timeout
-        
-        if not content:
-            raise ScraperError(f"Failed to fetch content from {source_url} (empty response)")
-        
-        content_length = len(content)
-        print(f"Content fetched successfully, length: {content_length} chars")
-        
-        # Parse the content - most parsers will now return (chapters, next_url)
-        print(f"Parsing content with {source_name_lower} parser...")
-        
-        # Handle both old and new parser function signatures
-        parser_result = parser(content, source_url)
-        
-        # Check if the parser returns a tuple (chapters, next_url) or just chapters
-        if isinstance(parser_result, tuple) and len(parser_result) == 2:
-            chapters, next_url = parser_result
-        else:
-            # For backward compatibility with older parsers
-            chapters = parser_result
-            next_url = None
-            
-        # If recursive mode is enabled and we have a next URL, follow it
-        all_chapters = list(chapters)  # Create a copy of the current chapters
-        
-        if recursive and next_url and len(all_chapters) < max_chapters:
-            print(f"Following next chapter link: {next_url}")
-            try:
-                # Recursively scrape next chapters
-                next_chapters = await scrape_chapters_for_novel(
-                    next_url, source_name, recursive, max_chapters, visited_urls
-                )
-                print(f"Found {len(next_chapters)} additional chapters from next URL")
-                
-                # Append the chapters from the next URL
-                all_chapters.extend(next_chapters)
-                
-                # Check if we've reached the limit
-                if len(all_chapters) >= max_chapters:
-                    print(f"Reached maximum chapter limit ({max_chapters}), stopping recursion")
-                    all_chapters = all_chapters[:max_chapters]
-            except Exception as e:
-                # If we get an error following the next URL, log it but continue with what we have
-                print(f"Error following next link {next_url}: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        elapsed = time.time() - start_time
-        print(f"Scrape operation completed in {elapsed:.2f} seconds, found {len(all_chapters)} chapters")
-        
-        return all_chapters
+        # Get chapters using the appropriate scraper
+        chapters = await scraper.get_chapters(source_url, max_chapters)
+        return chapters
     except Exception as e:
-        elapsed = time.time() - start_time
-        print(f"Error during scrape operation after {elapsed:.2f} seconds: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Error during scrape operation: {e}")
         raise ScraperError(f"Failed to scrape chapters: {str(e)}")
 
 # For backward compatibility during transition
@@ -313,15 +256,11 @@ parse_chapters_pastebin_tbate.__annotations__["return"] = Tuple[List[Chapter], O
 
 def get_scraper_for_source(source_name: str):
     """Get the appropriate scraper for the given source."""
-    scrapers = {
-        'NovelBin': NovelBinScraper,
-    }
-    
-    scraper_class = scrapers.get(source_name)
-    if not scraper_class:
+    source_name_lower = source_name.lower()
+    scraper = SOURCE_SCRAPERS.get(source_name_lower)
+    if not scraper:
         raise ScraperError(f"No scraper available for source: {source_name}")
-    
-    return scraper_class()
+    return scraper
 
 async def scrape_novel_info(
     source_url: str,
@@ -330,7 +269,13 @@ async def scrape_novel_info(
     """Scrape novel information from its source."""
     try:
         scraper = get_scraper_for_source(source_name)
-        return scraper.get_novel_info(source_url)
+        # TODO: Implement novel info scraping
+        return {
+            "title": "Unknown",
+            "author": "Unknown",
+            "description": "No description available",
+            "status": "Unknown"
+        }
     except Exception as e:
         raise ScraperError(f"Failed to scrape novel info: {str(e)}")
 
@@ -341,6 +286,7 @@ async def scrape_chapter_content(
     """Scrape the content of a specific chapter."""
     try:
         scraper = get_scraper_for_source(source_name)
-        return scraper.get_chapter_content(chapter_url)
+        content = await scraper.get_chapter_content(chapter_url)
+        return content
     except Exception as e:
         raise ScraperError(f"Failed to scrape chapter content: {str(e)}") 

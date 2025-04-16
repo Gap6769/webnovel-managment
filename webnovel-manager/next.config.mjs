@@ -21,11 +21,18 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    serverActions: true,
   },
   webpack: (config) => {
     config.module.rules.push({
@@ -34,6 +41,7 @@ const nextConfig = {
     })
     return config
   },
+  output: 'standalone',
 }
 
 if (userConfig) {

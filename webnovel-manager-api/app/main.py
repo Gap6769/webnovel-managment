@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from .routers import health, novels
+from .routers import health, novels, chapters
 from .db.database import connect_to_mongo, close_mongo_connection
 from .core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,8 +28,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health.router, prefix=settings.API_V1_STR, tags=["Health"])
-app.include_router(novels.router, prefix=f"{settings.API_V1_STR}/novels", tags=["Novels"])
+app.include_router(health.router, prefix=settings.API_V1_STR)
+app.include_router(novels.router, prefix=f"{settings.API_V1_STR}/novels")
+app.include_router(chapters.router, prefix=f"{settings.API_V1_STR}/novels")
 
 @app.get("/")
 async def root():

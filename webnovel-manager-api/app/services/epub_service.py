@@ -11,10 +11,15 @@ from pydantic import HttpUrl
 import shutil
 import zipfile
 import io
+from .translation_service import translation_service
+from .scraper_service import scrape_chapter_content, ScraperError
 
 class EpubService:
     def __init__(self):
         self.temp_dir = tempfile.gettempdir()
+        self.output_dir = "epubs"
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
         
     def _get_raw_pastebin_url(self, url: HttpUrl) -> str:
         """Convierte una URL de Pastebin a su versión raw."""
@@ -25,16 +30,17 @@ class EpubService:
         paste_id = match.group(1)
         return f"https://pastebin.com/raw/{paste_id}"
         
-    async def fetch_chapter_content(self, chapter_url: HttpUrl) -> str:
-        """Obtiene el contenido de un capítulo desde su URL."""
-        raw_url = self._get_raw_pastebin_url(chapter_url)
-        async with httpx.AsyncClient() as client:
-            response = await client.get(raw_url)
-            response.raise_for_status()
-            return response.text
+    async def fetch_chapter_content(self, chapter_url: HttpUrl, source_name: str) -> str:
+        """Obtiene el contenido de un capítulo desde su URL usando el servicio de scraping general."""
+        try:
+            content = await scrape_chapter_content(str(chapter_url), source_name)
+            return content
+        except ScraperError as e:
+            print(f"Error scraping chapter content: {str(e)}")
+            raise
             
-    def clean_pastebin_content(self, content: str) -> str:
-        """Limpia y formatea el contenido de Pastebin."""
+    def clean_content(self, content: str) -> str:
+        """Limpia y formatea el contenido del capítulo."""
         lines = content.split('\n')
         cleaned_lines = []
         current_paragraph = []
@@ -74,139 +80,101 @@ class EpubService:
         novel_title: str,
         author: str,
         chapters: List[Chapter],
+        source_name: str,
         start_chapter: Optional[int] = None,
         end_chapter: Optional[int] = None,
-        single_chapter: Optional[int] = None
-    ) -> Tuple[bytes, str]:
-        """Crea un archivo EPUB con los capítulos especificados y lo devuelve en memoria."""
-        # Crear el libro
+        single_chapter: Optional[int] = None,
+        translate: bool = False
+    ) -> tuple[bytes, str]:
+        """
+        Create an EPUB file with the specified chapters.
+        If translate is True, the content will be translated to Spanish.
+        """
         book = epub.EpubBook()
 
-        # Configurar metadatos
-        book.set_identifier(f"{novel_id}_{start_chapter or single_chapter}")
+        # Set metadata
+        book.set_identifier(novel_id)
         book.set_title(novel_title)
-        book.set_language('es')
-        book.add_author(author or "Unknown")
+        book.set_language('es' if translate else 'en')
+        book.add_author(author)
 
-        # Crear la tabla de contenido
-        book.toc = []
-        book.spine = ['nav']
+        # Create chapters
+        epub_chapters = []
+        toc = []
+        spine = ['nav']
 
-        # Definir estilo CSS
-        style = '''
-        @namespace epub "http://www.idpf.org/2007/ops";
-        body {
-            font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif;
-            line-height: 1.6;
-            margin: 2em;
-            text-align: justify;
-            color: #333;
-        }
-        .chapter-header {
-            text-align: center;
-            margin-bottom: 3em;
-        }
-        h1 {
-            text-transform: uppercase;
-            font-weight: 200;
-            margin-bottom: 0.5em;
-            font-size: 1.8em;
-        }
-        .chapter-number {
-            font-style: italic;
-            color: #666;
-            margin-bottom: 2em;
-        }
-        .chapter-content {
-            text-indent: 2em;
-        }
-        .chapter-content p {
-            margin-bottom: 1em;
-            text-align: justify;
-        }
-        '''
-        
-        # Agregar archivo CSS
-        nav_css = epub.EpubItem(
-            uid="style_nav",
-            file_name="style/nav.css",
-            media_type="text/css",
-            content=style
-        )
-        book.add_item(nav_css)
-
-        # Crear la página de título
-        title_page = epub.EpubHtml(
-            title='Title Page',
-            file_name='title_page.xhtml',
-            lang='es'
-        )
-        title_page.content = f'''
-        <div class="title-page">
-            <h1>{novel_title}</h1>
-            <h2>by {author or "Unknown"}</h2>
-        </div>
-        '''
-        book.add_item(title_page)
-        book.spine.append(title_page)
-
-        # Filtrar capítulos según los parámetros
-        filtered_chapters = []
+        # Filter chapters based on parameters
         if single_chapter is not None:
-            filtered_chapters = [c for c in chapters if c.chapter_number == single_chapter]
-        else:
-            start = start_chapter if start_chapter is not None else 1
-            end = end_chapter if end_chapter is not None else len(chapters)
-            filtered_chapters = [c for c in chapters if start <= c.chapter_number <= end]
+            chapters = [c for c in chapters if c.chapter_number == single_chapter]
+        elif start_chapter is not None or end_chapter is not None:
+            chapters = [
+                c for c in chapters
+                if (start_chapter is None or c.chapter_number >= start_chapter) and
+                   (end_chapter is None or c.chapter_number <= end_chapter)
+            ]
 
-        # Agregar cada capítulo
-        for chapter in filtered_chapters:
+        for chapter in chapters:
             try:
-                # Obtener y limpiar el contenido del capítulo
-                raw_content = await self.fetch_chapter_content(chapter.url)
-                cleaned_content = self.clean_pastebin_content(raw_content)
+                # Fetch and clean chapter content
+                raw_content = await self.fetch_chapter_content(chapter.url, source_name)
+                cleaned_content = self.clean_content(raw_content)
                 
-                # Crear el contenido del capítulo
-                chapter_content = f'''
-                <div class="chapter-header">
-                    <h1>{chapter.chapter_title or chapter.title}</h1>
-                    <p class="chapter-number">Capítulo {chapter.chapter_number}</p>
-                </div>
-                <div class="chapter-content">
-                    {cleaned_content}
-                </div>
-                '''
+                # Create chapter content
+                content = f"<h1>Chapter {chapter.chapter_number}</h1>"
+                if chapter.chapter_title:
+                    content += f"<h2>{chapter.chapter_title}</h2>"
+                
+                # Add chapter content with optional translation
+                if translate:
+                    translated_content = await translation_service.translate_text(cleaned_content)
+                    content += f"<div>{translated_content if translated_content else cleaned_content}</div>"
+                else:
+                    content += f"<div>{cleaned_content}</div>"
 
-                # Crear el objeto del capítulo
+                # Create epub chapter
                 epub_chapter = epub.EpubHtml(
-                    title=chapter.chapter_title or chapter.title,
+                    title=f"Chapter {chapter.chapter_number}",
                     file_name=f'chapter_{chapter.chapter_number}.xhtml',
-                    lang='es'
+                    content=content
                 )
-                epub_chapter.content = chapter_content
-                epub_chapter.add_item(nav_css)
-
-                # Agregar el capítulo al libro
                 book.add_item(epub_chapter)
-                book.toc.append(epub_chapter)
-                book.spine.append(epub_chapter)
+                epub_chapters.append(epub_chapter)
+                toc.append(epub_chapter)
+                spine.append(epub_chapter)
             except Exception as e:
-                print(f"Error procesando capítulo {chapter.chapter_number}: {str(e)}")
+                print(f"Error processing chapter {chapter.chapter_number}: {str(e)}")
                 continue
 
-        # Agregar la navegación
+        if not epub_chapters:
+            raise Exception("No chapters were successfully processed")
+
+        # Add table of contents
+        book.toc = toc
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
+        book.spine = spine
 
-        # Crear el EPUB en memoria
-        epub_bytes = io.BytesIO()
-        epub.write_epub(epub_bytes, book, {})
-        epub_bytes.seek(0)
+        # Generate filename
+        filename = f"{novel_title.replace(' ', '_')}"
+        if single_chapter:
+            filename += f"_chapter_{single_chapter}"
+        elif start_chapter or end_chapter:
+            filename += f"_chapters_{start_chapter or 'start'}_{end_chapter or 'end'}"
+        if translate:
+            filename += "_es"
+        filename += ".epub"
+
+        # Write the EPUB file
+        epub.write_epub(filename, book)
         
-        # Generar el nombre del archivo
-        filename = self._get_epub_filename(novel_id, start_chapter, end_chapter, single_chapter)
+        # Read the file and return bytes
+        with open(filename, 'rb') as f:
+            epub_bytes = f.read()
         
-        return epub_bytes.getvalue(), filename
+        # Clean up
+        os.remove(filename)
+        
+        return epub_bytes, filename
 
     async def generate_all_epubs(self, novel_id: str, novel_title: str, author: str, chapters: List[Chapter]) -> List[Tuple[bytes, str]]:
         """Genera EPUBs para todos los capítulos y rangos posibles en memoria."""
@@ -219,6 +187,7 @@ class EpubService:
                 novel_title=novel_title,
                 author=author,
                 chapters=chapters,
+                source_name=chapter.source_name,
                 single_chapter=chapter.chapter_number
             )
             generated_epubs.append((epub_bytes, filename))
@@ -234,6 +203,7 @@ class EpubService:
                 novel_title=novel_title,
                 author=author,
                 chapters=chapters,
+                source_name=chapter_numbers[i],
                 start_chapter=start,
                 end_chapter=end
             )
@@ -244,7 +214,8 @@ class EpubService:
             novel_id=novel_id,
             novel_title=novel_title,
             author=author,
-            chapters=chapters
+            chapters=chapters,
+            source_name=chapter_numbers[-1],
         )
         generated_epubs.append((epub_bytes, filename))
         

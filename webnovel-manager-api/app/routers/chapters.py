@@ -53,6 +53,7 @@ async def download_chapter(
     novel_id: PyObjectId,
     chapter_number: int,
     language: str = Query("en", regex="^(en|es)$"),
+    format: str = Query("epub", regex="^(epub|raw)$"),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Download a specific chapter."""
@@ -77,39 +78,55 @@ async def download_chapter(
     )
 
     try:
-        # Generate the EPUB
-        epub_bytes, filename = await epub_service.create_epub(
-            novel_id=str(novel_id),
-            novel_title=novel["title"],
-            author=novel.get("author", "Unknown"),
-            chapters=[chapter],
-            source_name=novel["source_name"],
-            single_chapter=chapter_number,
-            translate=(language == "es")
-        )
+        if format == "epub":
+            # Generate the EPUB
+            epub_bytes, filename = await epub_service.create_epub(
+                novel_id=str(novel_id),
+                novel_title=novel["title"],
+                author=novel.get("author", "Unknown"),
+                chapters=[chapter],
+                source_name=novel["source_name"],
+                single_chapter=chapter_number,
+                translate=(language == "es")
+            )
 
-        # Update chapter status
-        await db[NOVEL_COLLECTION].update_one(
-            {"_id": novel_id, "chapters.chapter_number": chapter_number},
-            {
-                "$set": {
-                    "chapters.$.downloaded": True,
-                    "chapters.$.read": True
+            # Update chapter status
+            await db[NOVEL_COLLECTION].update_one(
+                {"_id": novel_id, "chapters.chapter_number": chapter_number},
+                {
+                    "$set": {
+                        "chapters.$.downloaded": True,
+                        "chapters.$.read": True
+                    }
                 }
-            }
-        )
+            )
 
-        return StreamingResponse(
-            io.BytesIO(epub_bytes),
-            media_type='application/epub+zip',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"'
+            return StreamingResponse(
+                io.BytesIO(epub_bytes),
+                media_type='application/epub+zip',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"'
+                }
+            )
+        else:  # format == "raw"
+            # Get raw chapter content
+            raw_content = await epub_service.fetch_chapter_content(
+                chapter_url=chapter.url,
+                source_name=novel["source_name"],
+                #translate=(language == "es")
+            )
+            cleaned_content = epub_service.clean_content(raw_content)
+            
+            return {
+                "title": chapter.title,
+                "chapter_number": chapter.chapter_number,
+                "chapter_title": chapter.chapter_title,
+                "content": cleaned_content
             }
-        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating EPUB: {str(e)}"
+            detail=f"Error processing chapter: {str(e)}"
         )
 
 @router.post("/{novel_id}/chapters/download", response_model=ChapterDownloadResponse, tags=["chapters"])

@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "fonts": [
+      "assets/fonts/gothampro.ttf",
+      "assets/fonts/gothampro_black.ttf",
+      "assets/fonts/gothampro_blackitalic.ttf",
+      "assets/fonts/gothampro_bold.ttf",
+      "assets/fonts/gothampro_bolditalic.ttf",
+      "assets/fonts/gothampro_italic.ttf",
+      "assets/fonts/gothampro_light.ttf",
+      "assets/fonts/gothampro_lightitalic.ttf",
+      "assets/fonts/gothampro_medium.ttf",
+      "assets/fonts/gothampro_mediumitalic.ttf"
+    ]
+  }
+} 

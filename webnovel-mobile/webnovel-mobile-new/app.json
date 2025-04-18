@@ -1,5 +1,36 @@
 {
   "expo": {
+    "name": "WebNovel Manager",
+    "slug": "webnovel-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon-square.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2a2a2a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.webnovelmanager.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-square.png",
+        "backgroundColor": "#2a2a2a"
+      },
+      "package": "com.webnovelmanager.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "fonts": [
       "assets/fonts/gothampro.ttf",
       "assets/fonts/gothampro_black.ttf",
@@ -14,6 +45,15 @@
     ],
     "plugins": [
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "386ae90d-ad80-4e8c-b33f-66673484f08b"
+      }
+    },
+"runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/386ae90d-ad80-4e8c-b33f-66673484f08b"
+    }
   }
 }

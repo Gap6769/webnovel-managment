@@ -10,6 +10,9 @@ from .pastebin_tbate_scraper import PastebinTBATEScraper
 from .manhwa_scraper import AsuraScansScraper
 from .generic_scraper import GenericScraper
 from .manhwaweb_scraper import ManhwaWebScraper
+import time
+import asyncio
+import re
 
 class ScraperError(Exception):
     """Custom exception for scraping errors."""

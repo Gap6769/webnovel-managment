@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, ImageBackground, Animated, TouchableOpacity, Dimensions } from 'react-native';
-import { Text, Card, Button, ActivityIndicator, IconButton, Menu, Chip, Divider, Badge } from 'react-native-paper';
-import { useNovel, useChapters, useDeleteNovel } from '../api/contentApi';
+import { Text, Card, Button, ActivityIndicator, IconButton, Menu, Chip, Divider, Badge, Portal, Snackbar, Modal } from 'react-native-paper';
+import { useNovel, useChapters, useDeleteNovel, useFetchChapters } from '../api/contentApi';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Check, Download } from 'lucide-react-native';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 interface Chapter {
   chapter_number: number;
@@ -33,10 +34,13 @@ const NovelDetailsScreen = () => {
   const [expandedDescription, setExpandedDescription] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const { mutate: deleteNovel, isPending: isDeleting } = useDeleteNovel();
+  const { mutate: fetchChapters, isPending: isUpdating } = useFetchChapters();
+  const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const { data: novel, isLoading: novelLoading, error: novelError, refetch: refetchNovel } = useNovel(novelId);
   const { data: chapters, isLoading: chaptersLoading, error: chaptersError, refetch: refetchChapters } = useChapters(novelId);
-  const { mutate: deleteNovel } = useDeleteNovel();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -44,11 +48,32 @@ const NovelDetailsScreen = () => {
     setRefreshing(false);
   };
 
+  const handleUpdateChapters = () => {
+    setMenuVisible(false);
+    fetchChapters(novelId, {
+      onSuccess: () => {
+        setSnackbarMessage('Chapters updated successfully');
+        setShowSnackbar(true);
+        refetchNovel();
+        refetchChapters();
+      },
+      onError: () => {
+        setSnackbarMessage('Error updating chapters');
+        setShowSnackbar(true);
+      }
+    });
+  };
+
   const handleDelete = () => {
+    setMenuVisible(false);
     deleteNovel(novelId, {
       onSuccess: () => {
         navigation.goBack();
       },
+      onError: () => {
+        setSnackbarMessage('Error deleting novel');
+        setShowSnackbar(true);
+      }
     });
   };
 
@@ -60,7 +85,7 @@ const NovelDetailsScreen = () => {
   });
 
   // Function to show menu and set its position
-  const showMenu = (event) => {
+  const showMenu = (event: any) => {
     // Get width from Dimensions
     const { width } = Dimensions.get('window');
     setMenuPosition({ 
@@ -210,7 +235,7 @@ const NovelDetailsScreen = () => {
           <View style={styles.chaptersContainer}>
             {chapters?.chapters.map((chapter: Chapter) => (
               <Card
-                key={chapter.chapter_number}
+                key={`${novelId}-${chapter.chapter_number}-${chapter.title}`}
                 style={styles.chapterCard}
                 mode="outlined"
                 onPress={() => navigation.navigate('Reader', { 
@@ -280,15 +305,36 @@ const NovelDetailsScreen = () => {
           titleStyle={{ color: '#fff' }}
         />
         <Menu.Item
-          onPress={() => {
-            setMenuVisible(false);
-            handleDelete();
-          }}
-          title="Delete Novel"
-          leadingIcon="delete"
+          onPress={handleUpdateChapters}
+          title={isUpdating ? "Updating..." : "Update Chapters"}
+          leadingIcon={isUpdating ? "refresh" : "refresh"}
+          titleStyle={{ color: '#fff' }}
+          disabled={isUpdating}
+        />
+        <Menu.Item
+          onPress={handleDelete}
+          title={isDeleting ? "Deleting..." : "Delete Novel"}
+          leadingIcon={isDeleting ? "delete" : "delete"}
           titleStyle={{ color: '#ff4444' }}
+          disabled={isDeleting}
         />
       </Menu>
+
+      <Portal>
+        <Snackbar
+          visible={showSnackbar}
+          onDismiss={() => setShowSnackbar(false)}
+          duration={3000}
+          style={{ backgroundColor: '#3b3a3a' }}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </Portal>
+
+      <LoadingOverlay 
+        visible={isUpdating || isDeleting} 
+        message={isUpdating ? "Updating chapters..." : "Deleting novel..."} 
+      />
     </View>
   );
 };

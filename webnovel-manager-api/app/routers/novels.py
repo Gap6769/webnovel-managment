@@ -161,6 +161,8 @@ async def update_novel(
         update_data['source_url'] = str(update_data['source_url'])
     if 'cover_image_url' in update_data and update_data['cover_image_url']:
         update_data['cover_image_url'] = str(update_data['cover_image_url'])
+    if 'source_language' in update_data and update_data['source_language']:
+        update_data['source_language'] = str(update_data['source_language'])
 
     # Ensure we update the timestamp
     update_data["last_updated_api"] = datetime.utcnow()
@@ -187,87 +189,6 @@ async def delete_novel(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
     return
 
-# @router.get("/{novel_id}/download", response_model=ChapterDownloadResponse, tags=["novels"])
-# async def download_novel(
-#     novel_id: PyObjectId,
-#     start_chapter: Optional[int] = None,
-#     end_chapter: Optional[int] = None,
-#     single_chapter: Optional[int] = None,
-#     translate: bool = False,
-#     db: AsyncIOMotorDatabase = Depends(get_database)
-# ):
-    """Download a novel or specific chapters as an EPUB file."""
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
-    if novel is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
-    
-    # Get the novel's chapters and convert to Chapter objects
-    chapter_dicts = novel.get("chapters", [])
-    if not chapter_dicts:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No chapters available for this novel")
-    
-    # Convert dictionaries to Chapter objects
-    chapters = [
-        Chapter(
-            title=chapter_dict["title"],
-            chapter_number=chapter_dict["chapter_number"],
-            chapter_title=chapter_dict.get("chapter_title"),
-            url=chapter_dict["url"],
-            read=chapter_dict.get("read", False),
-            downloaded=chapter_dict.get("downloaded", False)
-        )
-        for chapter_dict in chapter_dicts
-    ]
-    
-    try:
-        # Create the EPUB file
-        epub_bytes, filename = await epub_service.create_epub(
-            novel_id=str(novel_id),
-            novel_title=novel["title"],
-            author=novel.get("author", "Unknown"),
-            chapters=chapters,
-            source_name=novel["source_name"],
-            start_chapter=start_chapter,
-            end_chapter=end_chapter,
-            single_chapter=single_chapter,
-            translate=translate
-        )
-        
-        # Update chapter statuses
-        updated_chapters = []
-        if single_chapter is not None:
-            # Update single chapter
-            chapter = next((c for c in chapters if c.chapter_number == single_chapter), None)
-            if chapter:
-                updated_chapters.append(chapter.chapter_number)
-                await db[NOVEL_COLLECTION].update_one(
-                    {"_id": novel_id, "chapters.chapter_number": single_chapter},
-                    {"$set": {"chapters.$.downloaded": True}}
-                )
-        else:
-            # Update range of chapters
-            start = start_chapter if start_chapter is not None else 1
-            end = end_chapter if end_chapter is not None else max(c.chapter_number for c in chapters)
-            
-            for chapter in chapters:
-                if start <= chapter.chapter_number <= end:
-                    updated_chapters.append(chapter.chapter_number)
-            
-            await db[NOVEL_COLLECTION].update_many(
-                {"_id": novel_id, "chapters.chapter_number": {"$gte": start, "$lte": end}},
-                {"$set": {"chapters.$.downloaded": True}}
-            )
-        
-        return ChapterDownloadResponse(
-            success=True,
-            message=f"EPUB file '{filename}' created successfully",
-            updated_chapters=updated_chapters
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating EPUB: {str(e)}"
-        )
 
 @router.patch("/{novel_id}/reading-progress", response_model=NovelDetail, tags=["novels"])
 async def update_reading_progress(
@@ -351,4 +272,56 @@ async def update_reading_progress(
         source_name=updated_novel["source_name"],
         tags=updated_novel.get("tags", []),
         reading_progress=reading_progress
-    ) 
+    )
+
+@router.post("/{novel_id}/metadata", response_model=NovelDetail, tags=["novels"])
+async def update_metadata(
+    novel_id: PyObjectId,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Update the metadata of a novel by scraping it from the source website."""
+    # Find the novel
+    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    if novel is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
+    
+    try:
+        # Scrape novel info from source
+        novel_info = await scrape_novel_info(str(novel["source_url"]), novel["source_name"])
+        
+        # Update novel with new metadata
+        update_data = {
+            "title": novel_info["title"],
+            "author": novel_info["author"],
+            "description": novel_info["description"],
+            "cover_image_url": novel_info["cover_image_url"],
+            "tags": novel_info["tags"],
+            "status": novel_info["status"],
+            "last_updated_api": datetime.utcnow()
+        }
+        
+        # Ensure URLs are stored as strings
+        if update_data["cover_image_url"]:
+            update_data["cover_image_url"] = str(update_data["cover_image_url"])
+        
+        result = await db[NOVEL_COLLECTION].update_one(
+            {"_id": novel_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
+        
+        # Return the updated novel with all details
+        return await get_novel_by_id(novel_id, db)
+        
+    except ScraperError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to scrape novel info: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}"
+        ) 

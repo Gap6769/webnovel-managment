@@ -1,4 +1,4 @@
-import type { Novel, NovelDetail, Chapter, ChapterDownloadResponse, ApiResponse, ChapterListResponse } from "@/types"
+import type { Novel, NovelDetail, Chapter, ChapterDownloadResponse, ApiResponse, ChapterListResponse, ManhwaResponse } from "@/types"
 import { API_BASE_URL, ERROR_MESSAGES, STORAGE_KEYS } from "@/constants"
 
 // Generic API client with error handling
@@ -155,6 +155,13 @@ export const chaptersAPI = {
       }
     })
   },
+  getChapterContent: async (novelId: string, chapterNumber: number): Promise<ApiResponse<ManhwaResponse>> => {
+    return client<ManhwaResponse>(`/novels/${novelId}/chapters/${chapterNumber}`, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+  },
   downloadMultiple: async (novelId: string, chapterNumbers: number[], language: string = "en") => {
     return client<Blob>(`/novels/${novelId}/chapters/download?language=${language}`, {
       method: "POST",
@@ -194,6 +201,7 @@ export const chaptersAPI = {
       };
     }
   },
+
 }
 
 // Sources API

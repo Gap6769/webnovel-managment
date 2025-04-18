@@ -56,7 +56,7 @@ class PyObjectId(ObjectId):
 
 class NovelType(str, Enum):
     NOVEL = "novel"
-    MANWHA = "manwha"
+    MANHWA = "manhwa"
 
 class Chapter(BaseModel):
     # Basic chapter structure, can be expanded later
@@ -75,6 +75,8 @@ class NovelBase(BaseModel):
     description: Optional[str] = None
     source_url: HttpUrl # URL of the novel's main page on the source website
     source_name: str # Name of the source (e.g., "NovelUpdates", "Webnovel")
+    source_language: Optional[str] = None # Language of the source (e.g., "en", "es")
+
     tags: List[str] = []
     status: Optional[str] = None # e.g., "Ongoing", "Completed"
     type: NovelType = NovelType.NOVEL
@@ -89,6 +91,7 @@ class NovelUpdate(BaseModel):
     description: Optional[str] = None
     source_url: Optional[HttpUrl] = None
     source_name: Optional[str] = None
+    source_language: Optional[str] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
     last_updated_chapters: Optional[datetime] = None

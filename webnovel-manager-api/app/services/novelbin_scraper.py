@@ -121,8 +121,8 @@ class NovelBinScraper(BaseScraper):
             
             # Sort chapters by number and limit to max_chapters
             chapters.sort(key=lambda x: x.chapter_number)
-            if max_chapters:
-                chapters = chapters[:max_chapters]
+            # if max_chapters:
+            #    chapters = chapters[:max_chapters]
             print(f"Total chapters found: {len(chapters)}")
             return chapters
     

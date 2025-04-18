@@ -19,31 +19,42 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <PaperProvider>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName="Library">
+          <Stack.Navigator 
+            initialRouteName="Library"
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#2a2a2a' },
+              animation: 'slide_from_right',
+              animationDuration: 300,
+              animationTypeForReplace: 'push',
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
+              presentation: 'card',
+            }}
+          >
             <Stack.Screen 
               name="Library" 
               component={LibraryScreen}
-              options={{ title: 'My Library' }}
             />
             <Stack.Screen 
               name="NovelDetails" 
               component={NovelDetailsScreen}
-              options={{ title: 'Novel Details' }}
             />
             <Stack.Screen 
               name="AddContent" 
               component={AddContentScreen}
-              options={{ title: 'Add New Content' }}
             />
             <Stack.Screen 
               name="Reader" 
               component={ReaderScreen}
-              options={{ title: 'Reader' }}
+              options={{
+                animation: 'fade',
+                animationDuration: 200,
+              }}
             />
             <Stack.Screen 
               name="Settings" 
               component={SettingsScreen}
-              options={{ title: 'Settings' }}
             />
           </Stack.Navigator>
         </NavigationContainer>

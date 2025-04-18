@@ -11,6 +11,9 @@
       "assets/fonts/gothampro_lightitalic.ttf",
       "assets/fonts/gothampro_medium.ttf",
       "assets/fonts/gothampro_mediumitalic.ttf"
+    ],
+    "plugins": [
+      "expo-asset"
     ]
   }
-} 
+}

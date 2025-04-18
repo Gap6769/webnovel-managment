@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from typing import List, Optional
-from ..models.novel import NovelCreate, NovelPublic, NovelUpdate, PyObjectId, NovelSummary, NovelDetail, ChapterDownloadResponse, Chapter
+from ..models.novel import NovelCreate, NovelPublic, NovelUpdate, PyObjectId, NovelSummary, NovelDetail, ChapterDownloadResponse, Chapter, NovelType
 from ..db.database import get_database
 from ..services.scraper_service import scrape_chapters_for_novel, scrape_novel_info, ScraperError
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -71,10 +71,15 @@ async def create_novel(
 async def get_novels(
     db: AsyncIOMotorDatabase = Depends(get_database),
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
+    type: Optional[NovelType] = None
 ):
     """Retrieves a list of all novels in the library with summary information."""
-    novels_cursor = db[NOVEL_COLLECTION].find().skip(skip).limit(limit)
+    query = {}
+    if type:
+        query["type"] = type
+    
+    novels_cursor = db[NOVEL_COLLECTION].find(query).skip(skip).limit(limit)
     novels = await novels_cursor.to_list(length=limit)
     
     # Convert to NovelSummary with calculated fields
@@ -92,6 +97,7 @@ async def get_novels(
             author=novel.get("author"),
             cover_image_url=novel.get("cover_image_url"),
             status=novel.get("status"),
+            type=novel.get("type", NovelType.NOVEL),
             total_chapters=total_chapters,
             last_chapter_number=last_chapter,
             read_chapters=read_chapters,
@@ -124,6 +130,7 @@ async def get_novel_by_id(
         author=novel.get("author"),
         cover_image_url=novel.get("cover_image_url"),
         status=novel.get("status"),
+        type=novel.get("type", NovelType.NOVEL),
         total_chapters=total_chapters,
         last_chapter_number=max((c["chapter_number"] for c in chapters), default=0),
         read_chapters=read_chapters,
@@ -332,6 +339,7 @@ async def update_reading_progress(
         author=updated_novel.get("author"),
         cover_image_url=updated_novel.get("cover_image_url"),
         status=updated_novel.get("status"),
+        type=updated_novel.get("type", NovelType.NOVEL),
         total_chapters=total_chapters,
         last_chapter_number=max((c["chapter_number"] for c in updated_novel.get("chapters", [])), default=0),
         read_chapters=read_chapters,

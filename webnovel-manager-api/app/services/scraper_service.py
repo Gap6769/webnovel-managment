@@ -1,14 +1,15 @@
 import httpx
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set, Type, Any, Union
 from pydantic import HttpUrl
 from ..models.novel import Chapter
-import re # Import regex module
-import time # For timing operations
-import asyncio # For timeout handling
+from .base_scraper import BaseScraper, ScraperConfig, ScraperError
 from .novelbin_scraper import NovelBinScraper
 from .pastebin_tbate_scraper import PastebinTBATEScraper
+from .manhwa_scraper import AsuraScansScraper
+from .generic_scraper import GenericScraper
+from .manhwaweb_scraper import ManhwaWebScraper
 
 class ScraperError(Exception):
     """Custom exception for scraping errors."""
@@ -192,12 +193,46 @@ def parse_chapters_pastebin_tbate(raw_text_content: str, chapter_url: str) -> Tu
     # Return both the chapters found on this page and the URL to the next chapter (if any)
     return chapters, next_chapter_url
 
-# Scraper registry
-SOURCE_SCRAPERS = {
-    "example_source": parse_chapters_example,
-    "pastebin_tbate": PastebinTBATEScraper(),
-    "novelbin": NovelBinScraper(),  # Create instance of NovelBinScraper
+# Registry of available scrapers
+SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
+    "novelbin": NovelBinScraper,
+    "pastebin_tbate": PastebinTBATEScraper,
+    "asurascans": AsuraScansScraper,
+    "manhwaweb": ManhwaWebScraper
 }
+
+def get_scraper_for_source(source_name: str) -> BaseScraper:
+    """Get the appropriate scraper for the given source."""
+    source_name_lower = source_name.lower()
+    scraper_class = SCRAPER_REGISTRY.get(source_name_lower)
+    if not scraper_class:
+        raise ScraperError(f"No scraper available for source: {source_name}")
+    return scraper_class()
+
+async def create_generic_scraper(
+    config: ScraperConfig
+) -> GenericScraper:
+    """
+    Create a new generic scraper with custom configuration.
+    
+    Args:
+        config: The configuration for the generic scraper
+        
+    Returns:
+        A configured GenericScraper instance
+    """
+    return GenericScraper(
+        name=config.name,
+        base_url=config.base_url,
+        content_type=config.content_type,
+        selectors=config.selectors,
+        patterns=config.patterns,
+        use_playwright=config.use_playwright,
+        headers=config.headers,
+        timeout=config.timeout,
+        max_retries=config.max_retries,
+        special_actions=config.special_actions
+    )
 
 async def scrape_chapters_for_novel(
     source_url: str, 
@@ -234,59 +269,48 @@ async def scrape_chapters_for_novel(
     # Add this URL to visited set
     visited_urls.add(source_url)
     
-    # Normalize source_name to lowercase for lookup
-    source_name_lower = source_name.lower()
-    
-    scraper = SOURCE_SCRAPERS.get(source_name_lower)
-    if not scraper:
-        print(f"Error: No scraper available for source: {source_name_lower}")
-        print(f"Available scrapers: {list(SOURCE_SCRAPERS.keys())}")
-        raise ScraperError(f"No scraper available for source: {source_name}")
-
     try:
-        # Get chapters using the appropriate scraper
+        # Get the appropriate scraper
+        scraper = get_scraper_for_source(source_name)
+        
+        # Get chapters using the scraper
         chapters = await scraper.get_chapters(source_url, max_chapters)
+        
+        # If recursive mode is enabled and we have a next chapter URL
+        if recursive and hasattr(scraper, 'next_chapter_url') and scraper.next_chapter_url:
+            next_chapters = await scrape_chapters_for_novel(
+                scraper.next_chapter_url,
+                source_name,
+                recursive=True,
+                max_chapters=max_chapters - len(chapters),
+                visited_urls=visited_urls
+            )
+            chapters.extend(next_chapters)
+        
+        elapsed = time.time() - start_time
+        print(f"Scrape operation completed in {elapsed:.2f} seconds, found {len(chapters)} chapters")
         return chapters
+        
     except Exception as e:
-        print(f"Error during scrape operation: {e}")
+        elapsed = time.time() - start_time
+        print(f"Error during scrape operation after {elapsed:.2f} seconds: {e}")
         raise ScraperError(f"Failed to scrape chapters: {str(e)}")
 
-# For backward compatibility during transition
-parse_chapters_pastebin_tbate.__annotations__["return"] = Tuple[List[Chapter], Optional[str]] 
-
-def get_scraper_for_source(source_name: str):
-    """Get the appropriate scraper for the given source."""
-    source_name_lower = source_name.lower()
-    scraper = SOURCE_SCRAPERS.get(source_name_lower)
-    if not scraper:
-        raise ScraperError(f"No scraper available for source: {source_name}")
-    return scraper
-
-async def scrape_novel_info(
-    source_url: str,
-    source_name: str
-) -> dict:
+async def scrape_novel_info(source_url: str, source_name: str) -> Dict[str, Any]:
     """Scrape novel information from its source."""
     try:
         scraper = get_scraper_for_source(source_name)
-        # TODO: Implement novel info scraping
-        return {
-            "title": "Unknown",
-            "author": "Unknown",
-            "description": "No description available",
-            "status": "Unknown"
-        }
+        return await scraper.get_novel_info(source_url)
     except Exception as e:
         raise ScraperError(f"Failed to scrape novel info: {str(e)}")
 
-async def scrape_chapter_content(
-    chapter_url: str,
-    source_name: str
-) -> str:
+async def scrape_chapter_content(chapter_url: str, source_name: str) -> str:
     """Scrape the content of a specific chapter."""
     try:
         scraper = get_scraper_for_source(source_name)
-        content = await scraper.get_chapter_content(chapter_url)
-        return content
+        return await scraper.get_chapter_content(chapter_url)
     except Exception as e:
-        raise ScraperError(f"Failed to scrape chapter content: {str(e)}") 
+        raise ScraperError(f"Failed to scrape chapter content: {str(e)}")
+
+# For backward compatibility during transition
+parse_chapters_pastebin_tbate.__annotations__["return"] = Tuple[List[Chapter], Optional[str]] 

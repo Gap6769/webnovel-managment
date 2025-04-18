@@ -1,141 +1,168 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, List, Switch, Button, useTheme } from 'react-native-paper';
-import { useSettings, useUpdateSettings } from '../api/settingsApi';
+import { Text, Switch, Divider, List, Surface, IconButton } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SettingsScreen = () => {
-  const theme = useTheme();
-  const { data: settings, isLoading } = useSettings();
-  const { mutate: updateSettings } = useUpdateSettings();
+interface SettingsState {
+  darkMode: boolean;
+  autoDownload: boolean;
+  notificationsEnabled: boolean;
+  keepScreenAwake: boolean;
+  compactView: boolean;
+}
 
-  const [localSettings, setLocalSettings] = useState(settings);
+const SettingsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const [settings, setSettings] = useState<SettingsState>({
+    darkMode: true,
+    autoDownload: false,
+    notificationsEnabled: true,
+    keepScreenAwake: false,
+    compactView: false,
+  });
 
-  const handleToggle = (key: keyof typeof settings) => {
-    if (!localSettings) return;
-    const newSettings = { ...localSettings, [key]: !localSettings[key] };
-    setLocalSettings(newSettings);
-    updateSettings(newSettings);
+  const toggleSetting = (key: keyof SettingsState) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
-
-  const handleValueChange = (key: keyof typeof settings, value: any) => {
-    if (!localSettings) return;
-    const newSettings = { ...localSettings, [key]: value };
-    setLocalSettings(newSettings);
-    updateSettings(newSettings);
-  };
-
-  if (isLoading || !localSettings) {
-    return (
-      <View style={styles.centered}>
-        <Text>Loading settings...</Text>
-      </View>
-    );
-  }
 
   return (
-    <ScrollView style={styles.container}>
-      <List.Section>
-        <List.Subheader>Appearance</List.Subheader>
-        <List.Item
-          title="Dark Mode"
-          description="Enable dark theme"
-          right={() => (
-            <Switch
-              value={localSettings.darkMode}
-              onValueChange={() => handleToggle('darkMode')}
-            />
-          )}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <IconButton
+          icon="arrow-left"
+          size={24}
+          iconColor="#fff"
+          onPress={() => navigation.goBack()}
         />
-      </List.Section>
-
-      <List.Section>
-        <List.Subheader>Content Updates</List.Subheader>
-        <List.Item
-          title="Auto Refresh"
-          description="Automatically check for new chapters"
-          right={() => (
-            <Switch
-              value={localSettings.autoRefresh}
-              onValueChange={() => handleToggle('autoRefresh')}
-            />
-          )}
-        />
-        <List.Item
-          title="Refresh Interval"
-          description={`Check every ${localSettings.refreshInterval} hours`}
-          onPress={() => {
-            // Show dialog to change interval
-          }}
-        />
-        <List.Item
-          title="Notifications"
-          description="Get notified when new chapters are available"
-          right={() => (
-            <Switch
-              value={localSettings.notificationsEnabled}
-              onValueChange={() => handleToggle('notificationsEnabled')}
-            />
-          )}
-        />
-      </List.Section>
-
-      <List.Section>
-        <List.Subheader>Storage</List.Subheader>
-        <List.Item
-          title="Download Chapters"
-          description="Save chapters for offline reading"
-          right={() => (
-            <Switch
-              value={localSettings.downloadChapters}
-              onValueChange={() => handleToggle('downloadChapters')}
-            />
-          )}
-        />
-        <List.Item
-          title="Maximum Downloads"
-          description={`Store up to ${localSettings.maxDownloads} chapters`}
-          onPress={() => {
-            // Show dialog to change max downloads
-          }}
-        />
-        <List.Item
-          title="Clear Cache"
-          description="Remove all downloaded content"
-          onPress={() => {
-            // Show confirmation dialog
-          }}
-        />
-      </List.Section>
-
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="contained"
-          onPress={() => {
-            // Reset to default settings
-          }}
-          style={styles.resetButton}
-        >
-          Reset to Defaults
-        </Button>
+        <Text variant="headlineMedium" style={styles.title}>Settings</Text>
       </View>
-    </ScrollView>
+
+      <ScrollView style={styles.content}>
+        <Surface style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <List.Item
+            title="Dark Mode"
+            description="Use dark theme throughout the app"
+            left={props => <List.Icon {...props} icon="theme-light-dark" />}
+            right={() => (
+              <Switch
+                value={settings.darkMode}
+                onValueChange={() => toggleSetting('darkMode')}
+                color="#9575cd"
+              />
+            )}
+          />
+          <Divider style={styles.divider} />
+          <List.Item
+            title="Compact View"
+            description="Show more items in the library view"
+            left={props => <List.Icon {...props} icon="view-grid" />}
+            right={() => (
+              <Switch
+                value={settings.compactView}
+                onValueChange={() => toggleSetting('compactView')}
+                color="#9575cd"
+              />
+            )}
+          />
+        </Surface>
+
+        <Surface style={styles.section}>
+          <Text style={styles.sectionTitle}>Reading</Text>
+          <List.Item
+            title="Keep Screen Awake"
+            description="Prevent screen from sleeping while reading"
+            left={props => <List.Icon {...props} icon="phone-lock" />}
+            right={() => (
+              <Switch
+                value={settings.keepScreenAwake}
+                onValueChange={() => toggleSetting('keepScreenAwake')}
+                color="#9575cd"
+              />
+            )}
+          />
+        </Surface>
+
+        <Surface style={styles.section}>
+          <Text style={styles.sectionTitle}>Content</Text>
+          <List.Item
+            title="Auto Download"
+            description="Automatically download new chapters"
+            left={props => <List.Icon {...props} icon="download" />}
+            right={() => (
+              <Switch
+                value={settings.autoDownload}
+                onValueChange={() => toggleSetting('autoDownload')}
+                color="#9575cd"
+              />
+            )}
+          />
+          <Divider style={styles.divider} />
+          <List.Item
+            title="Notifications"
+            description="Get notified about new chapters"
+            left={props => <List.Icon {...props} icon="bell" />}
+            right={() => (
+              <Switch
+                value={settings.notificationsEnabled}
+                onValueChange={() => toggleSetting('notificationsEnabled')}
+                color="#9575cd"
+              />
+            )}
+          />
+        </Surface>
+
+        <Surface style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <List.Item
+            title="Version"
+            description="1.0.0"
+            left={props => <List.Icon {...props} icon="information" />}
+          />
+        </Surface>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1a1a1a',
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
   },
-  buttonContainer: {
+  title: {
+    color: '#fff',
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  content: {
+    flex: 1,
     padding: 16,
   },
-  resetButton: {
-    marginTop: 16,
+  section: {
+    backgroundColor: '#2d2d2d',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  sectionTitle: {
+    color: '#9575cd',
+    fontSize: 14,
+    fontWeight: 'bold',
+    padding: 16,
+    paddingBottom: 8,
+  },
+  divider: {
+    backgroundColor: '#404040',
   },
 });
 

@@ -63,6 +63,31 @@ class EpubService:
             cleaned_lines.append('<p>' + ' '.join(current_paragraph) + '</p>')
             
         return '\n'.join(cleaned_lines)
+    
+    def clean_content_raw(self, content: str) -> str:
+        """Limpia y formatea el contenido del capítulo."""
+        lines = content.split('\n')
+        cleaned_lines = []
+        current_paragraph = []
+        
+        for line in lines:
+            line = line.strip()
+            
+            if not line or line.replace('-', '').strip() == '':
+                if current_paragraph:
+                    cleaned_lines.append('<p>' + ' '.join(current_paragraph) + '</p>')
+                    current_paragraph = []
+                continue
+                
+            if 'PDF:' in line or 'http' in line:
+                continue
+                
+            current_paragraph.append(line)
+            
+        if current_paragraph:
+            cleaned_lines.append('<p>' + ' '.join(current_paragraph) + '</p>')
+            
+        return '\n'.join(cleaned_lines)
 
     def _get_epub_filename(self, novel_id: str, start_chapter: Optional[int] = None, 
                       end_chapter: Optional[int] = None, single_chapter: Optional[int] = None) -> str:

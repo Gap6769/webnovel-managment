@@ -55,14 +55,40 @@ export interface NovelSummary {
   added_at: string;
 }
 
-export interface NovelDetail extends NovelSummary {
+export interface ManhwaImage {
+  url: string;
+  alt: string;
+  width: number | null;
+  height: number | null;
+}
+
+export interface ManhwaResponse {
+  type: string;
+  images: ManhwaImage[];
+}
+
+export interface NovelDetail {
+  _id: string;
+  title: string;
+  author: string | null;
+  cover_image_url: string | null;
   description: string | null;
   source_url: string;
   source_name: string;
   tags: string[];
-  reading_progress: number;
-  chapters: Chapter[];
+  status: string | null;
+  type: 'novel' | 'manhwa';
+  chapters: {
+    title: string;
+    chapter_number: number;
+    chapter_title: string | null;
+    url: string;
+    read: boolean;
+    downloaded: boolean;
+  }[];
+  added_at: string;
   last_updated_api: string;
+  last_updated_chapters: string;
   last_scraped?: string;
   next_update?: string;
   update_schedule?: string;

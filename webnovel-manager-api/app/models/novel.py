@@ -3,6 +3,7 @@ from typing import Optional, List, Any
 from bson import ObjectId
 from datetime import datetime
 from pydantic_core import core_schema
+from enum import Enum
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -53,6 +54,10 @@ class PyObjectId(ObjectId):
         json_schema.update(format="objectid") # Optional: add format hint
         return json_schema
 
+class NovelType(str, Enum):
+    NOVEL = "novel"
+    MANHWA = "manhwa"
+
 class Chapter(BaseModel):
     # Basic chapter structure, can be expanded later
     title: str
@@ -70,8 +75,11 @@ class NovelBase(BaseModel):
     description: Optional[str] = None
     source_url: HttpUrl # URL of the novel's main page on the source website
     source_name: str # Name of the source (e.g., "NovelUpdates", "Webnovel")
+    source_language: Optional[str] = None # Language of the source (e.g., "en", "es")
+
     tags: List[str] = []
     status: Optional[str] = None # e.g., "Ongoing", "Completed"
+    type: NovelType = NovelType.NOVEL
 
 class NovelCreate(NovelBase):
     pass
@@ -83,9 +91,11 @@ class NovelUpdate(BaseModel):
     description: Optional[str] = None
     source_url: Optional[HttpUrl] = None
     source_name: Optional[str] = None
+    source_language: Optional[str] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
     last_updated_chapters: Optional[datetime] = None
+    type: Optional[NovelType] = None
 
 class NovelInDB(NovelBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -110,6 +120,7 @@ class NovelSummary(BaseModel):
     author: Optional[str] = None
     cover_image_url: Optional[HttpUrl] = None
     status: Optional[str] = None
+    type: NovelType
     total_chapters: int
     last_chapter_number: int
     read_chapters: int

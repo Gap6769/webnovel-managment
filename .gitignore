@@ -71,3 +71,16 @@ logs/
 .cache/
 .pytest_cache/
 .mypy_cache/ 
+
+.expo/
+
+ios/
+android/
+payload/
+*.ipa
+*.apk
+*.app
+*.appx
+*.appxbundle
+*.appxupload
+*.msixupload

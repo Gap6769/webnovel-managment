@@ -6,7 +6,8 @@ import { use } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { novelsAPI, chaptersAPI } from "@/services/api"
 import { useNovel } from "@/hooks/useNovels"
-import type { NovelDetail, Chapter } from "@/types"
+import type { NovelDetail, Chapter, ManhwaResponse } from "@/types"
+import { ManhwaReader } from '@/components/reader/ManhwaReader';
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -62,6 +63,8 @@ export default function NovelDetail({ params }: { params: Promise<{ id: string }
   const [loadedChapters, setLoadedChapters] = useState<Chapter[]>([]);
   const [startChapter, setStartChapter] = useState<number>(1);
   const [endChapter, setEndChapter] = useState<number>(1);
+  const [manhwaData, setManhwaData] = useState<ManhwaResponse | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const chaptersRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -277,6 +280,29 @@ export default function NovelDetail({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleReadChapter = async (chapterNumber: number) => {
+    try {
+      setSelectedChapter(chapterNumber);
+      const response = await chaptersAPI.getChapterContent(resolvedParams.id, chapterNumber);
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch chapter content');
+      }
+
+      setManhwaData(response.data);
+      setActiveTab("reader");
+      
+      // Update reading progress
+      // await updateReadingProgress(chapterNumber);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to load chapter",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <main className="container mx-auto p-4 py-6">
@@ -379,11 +405,12 @@ export default function NovelDetail({ params }: { params: Promise<{ id: string }
         </div>
 
         <div className="md:col-span-2">
-          <Tabs defaultValue="info" onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="info">Information</TabsTrigger>
               <TabsTrigger value="chapters">Chapters</TabsTrigger>
               <TabsTrigger value="settings">Scraping Settings</TabsTrigger>
+              {novel?.type === 'manhwa' && <TabsTrigger value="reader">Reader</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="info" className="mt-4">
@@ -508,11 +535,21 @@ export default function NovelDetail({ params }: { params: Promise<{ id: string }
                               ) : (
                                 <Badge variant="secondary">Unread</Badge>
                               )}
-                             
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              {novel?.type === 'manhwa' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleReadChapter(chapter.chapter_number)}
+                                >
+                                  <BookOpen className="h-4 w-4" />
+                                  <span className="sr-only">Read</span>
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -598,6 +635,36 @@ export default function NovelDetail({ params }: { params: Promise<{ id: string }
                   </Card>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="reader" className="mt-4">
+              {manhwaData ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold">
+                      Chapter {selectedChapter}
+                    </h2>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("chapters")}
+                    >
+                      Back to Chapters
+                    </Button>
+                  </div>
+                  <ManhwaReader
+                    images={manhwaData.images}
+                    title={`${novel?.title} - Chapter ${selectedChapter}`}
+                    backUrl={`/novel/${resolvedParams.id}`}
+                  />
+                </div>
+              ) : (
+                <div className="flex h-[80vh] items-center justify-center">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold">No chapter selected</h2>
+                    <p className="mt-2 text-muted-foreground">Select a chapter from the chapters tab to start reading</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

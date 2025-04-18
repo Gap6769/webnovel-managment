@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
-from ..models.novel import Chapter, ChapterListResponse, ChapterDownloadResponse, PyObjectId
+from typing import List, Optional, Union
+from ..models.novel import Chapter, ChapterListResponse, ChapterDownloadResponse, PyObjectId, NovelType
 from ..db.database import get_database
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from ..services.epub_service import epub_service
-from ..services.scraper_service import scrape_chapters_for_novel, ScraperError
+from ..services.scraper_service import scrape_chapters_for_novel, ScraperError, scrape_chapter_content
 from fastapi.responses import StreamingResponse
 import io
 from datetime import datetime
+from ..services.translation_service import translation_service
 
 router = APIRouter()
 NOVEL_COLLECTION = "novels"
@@ -53,6 +54,7 @@ async def download_chapter(
     novel_id: PyObjectId,
     chapter_number: int,
     language: str = Query("en", regex="^(en|es)$"),
+    format: str = Query("epub", regex="^(epub|raw)$"),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Download a specific chapter."""
@@ -77,39 +79,75 @@ async def download_chapter(
     )
 
     try:
-        # Generate the EPUB
-        epub_bytes, filename = await epub_service.create_epub(
-            novel_id=str(novel_id),
-            novel_title=novel["title"],
-            author=novel.get("author", "Unknown"),
-            chapters=[chapter],
-            source_name=novel["source_name"],
-            single_chapter=chapter_number,
-            translate=(language == "es")
-        )
-
-        # Update chapter status
-        await db[NOVEL_COLLECTION].update_one(
-            {"_id": novel_id, "chapters.chapter_number": chapter_number},
-            {
-                "$set": {
-                    "chapters.$.downloaded": True,
-                    "chapters.$.read": True
+        # Si es un manhwa, devolver el contenido en formato raw
+        if novel.get("type") == NovelType.MANHWA:
+            content = await scrape_chapter_content(str(chapter.url), novel["source_name"])
+            
+            # Update chapter status
+            await db[NOVEL_COLLECTION].update_one(
+                {"_id": novel_id, "chapters.chapter_number": chapter_number},
+                {
+                    "$set": {
+                        "chapters.$.downloaded": True,
+                        "chapters.$.read": True
+                    }
                 }
-            }
-        )
+            )
+            
+            return content
 
-        return StreamingResponse(
-            io.BytesIO(epub_bytes),
-            media_type='application/epub+zip',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"'
+        # Para novelas, mantener la lógica existente
+        if format == "epub":
+            # Generate the EPUB
+            epub_bytes, filename = await epub_service.create_epub(
+                novel_id=str(novel_id),
+                novel_title=novel["title"],
+                author=novel.get("author", "Unknown"),
+                chapters=[chapter],
+                source_name=novel["source_name"],
+                single_chapter=chapter_number,
+                translate=(language == "es")
+            )
+
+            # Update chapter status
+            await db[NOVEL_COLLECTION].update_one(
+                {"_id": novel_id, "chapters.chapter_number": chapter_number},
+                {
+                    "$set": {
+                        "chapters.$.downloaded": True,
+                        "chapters.$.read": True
+                    }
+                }
+            )
+
+            return StreamingResponse(
+                io.BytesIO(epub_bytes),
+                media_type='application/epub+zip',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"'
+                }
+            )
+        else:  # format == "raw"
+            # Get raw chapter content
+            raw_content = await epub_service.fetch_chapter_content(
+                chapter_url=str(chapter.url),
+                source_name=novel["source_name"],
+            )
+            cleaned_content = epub_service.clean_content(raw_content)
+            
+            if language == "es" and novel["source_language"] == "en":
+                cleaned_content = await translation_service.translate_text(cleaned_content)
+            
+            return {
+                "title": chapter.title,
+                "chapter_number": chapter.chapter_number,
+                "chapter_title": chapter.chapter_title,
+                "content": cleaned_content
             }
-        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating EPUB: {str(e)}"
+            detail=f"Error processing chapter: {str(e)}"
         )
 
 @router.post("/{novel_id}/chapters/download", response_model=ChapterDownloadResponse, tags=["chapters"])
@@ -144,6 +182,34 @@ async def download_chapters(
     ]
 
     try:
+        # Si es un manhwa, devolver el contenido de cada capítulo
+        if novel.get("type") == NovelType.MANHWA:
+            chapters_content = []
+            for chapter in chapters:
+                content = await scrape_chapter_content(str(chapter.url), novel["source_name"])
+                chapters_content.append({
+                    "chapter_number": chapter.chapter_number,
+                    "title": chapter.title,
+                    "content": content
+                })
+            
+            # Update chapter status
+            await db[NOVEL_COLLECTION].update_many(
+                {"_id": novel_id, "chapters.chapter_number": {"$in": chapter_numbers}},
+                {
+                    "$set": {
+                        "chapters.$.downloaded": True,
+                        "chapters.$.read": True
+                    }
+                }
+            )
+            
+            return {
+                "type": "manhwa",
+                "chapters": chapters_content
+            }
+
+        # Para novelas, mantener la lógica existente
         # Generate the EPUB
         epub_bytes, filename = await epub_service.create_epub(
             novel_id=str(novel_id),
@@ -175,7 +241,7 @@ async def download_chapters(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating EPUB: {str(e)}"
+            detail=f"Error generating content: {str(e)}"
         )
 
 @router.post("/{novel_id}/chapters/fetch", response_model=ChapterListResponse, tags=["chapters"])

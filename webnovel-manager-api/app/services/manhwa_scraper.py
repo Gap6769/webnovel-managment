@@ -1,52 +1,25 @@
-from bs4 import BeautifulSoup
-import httpx
 from typing import List, Optional, Dict, Any
 from pydantic import HttpUrl
-from ..models.novel import Chapter
-from playwright.async_api import async_playwright
+from bs4 import BeautifulSoup
 import re
+from ..models.novel import Chapter
 from .base_scraper import BaseScraper, ScraperConfig
 
-class NovelBinScraper(BaseScraper):
-    BASE_URL = "https://novelbin.com"
+class ManhwaScraper(BaseScraper):
+    """Base class for manhwa scrapers."""
     
-    def __init__(self):
-        config = ScraperConfig(
-            name="novelbin",
-            base_url=self.BASE_URL,
-            content_type="novel",
-            selectors={
-                "title": "a.novel-title",
-                "author": ".author span",
-                "description": ".desc-text",
-                "cover_image": ".book-img img",
-                "status": ".status",
-                "tags": ".categories a",
-                "chapter_list": ".list-chapter li",
-                "chapter_link": "a",
-                "chapter_content": "#chr-content",
-                "unlock_buttons": ".unlock-buttons"
-            },
-            patterns={
-                "chapter_number": r"Chapter\s+(\d+)",
-                "unwanted_text": [
-                    r"Enhance your reading experience by removing ads.*",
-                    r"This material may be protected by copyright.*",
-                    r"Excerpt From.*",
-                    r"Remove Ads From.*"
-                ]
-            },
-            use_playwright=True  # NovelBin requires JavaScript for chapter list
-        )
+    def __init__(self, config: ScraperConfig):
+        # Ensure content type is manhwa
+        config.content_type = "manhwa"
         super().__init__(config)
     
     async def get_novel_info(self, url: str) -> Dict[str, Any]:
-        """Get novel information from NovelBin."""
+        """Get manhwa information from the source."""
         async with self:
-            html = await self.fetch_html(url + '#tab-chapters-title')
+            html = await self.fetch_html(url)
             soup = BeautifulSoup(html, 'html.parser')
             
-            # Extract novel information using selectors from config
+            # Extract manhwa information using selectors from config
             title = self._extract_text(soup, self.config.selectors["title"])
             author = self._extract_text(soup, self.config.selectors["author"])
             description = self._extract_text(soup, self.config.selectors["description"])
@@ -67,27 +40,22 @@ class NovelBinScraper(BaseScraper):
                 'status': status,
                 'tags': tags,
                 'source_url': url,
-                'source_name': 'NovelBin'
+                'source_name': self.config.name,
+                'type': 'manhwa'
             }
     
     async def get_chapters(self, url: str, max_chapters: int = 50) -> List[Chapter]:
-        """Get novel chapters from NovelBin."""
+        """Get manhwa chapters from the source."""
         async with self:
-            if not self._page:
-                raise RuntimeError("Playwright page not initialized")
+            if self.config.use_playwright and self._page:
+                await self._page.goto(url)
+                await self._page.wait_for_selector(self.config.selectors["chapter_list"])
+                await self._scroll_page_to_bottom(self._page)
+                html = await self._page.content()
+            else:
+                html = await self.fetch_html(url)
             
-            # Navigate to the page
-            await self._page.goto(url + '#tab-chapters-title')
-            
-            # Wait for the chapter list to load
-            await self._page.wait_for_selector(self.config.selectors["chapter_list"])
-            
-            # Scroll to load all chapters
-            await self._scroll_page_to_bottom(self._page)
-            
-            # Get the page content after scrolling
-            content = await self._page.content()
-            soup = BeautifulSoup(content, 'html.parser')
+            soup = BeautifulSoup(html, 'html.parser')
             
             chapters = []
             # Find all chapter list items
@@ -143,4 +111,36 @@ class NovelBinScraper(BaseScraper):
                 additional_patterns=self.config.patterns.get("unwanted_text", [])
             )
             
-            return content 
+            return content
+
+class AsuraScansScraper(ManhwaScraper):
+    """Scraper for Asura Scans website."""
+    
+    def __init__(self):
+        config = ScraperConfig(
+            name="asurascans",
+            base_url="https://asurascans.com",
+            content_type="manhwa",
+            selectors={
+                "title": ".entry-title",
+                "author": ".author a",
+                "description": ".entry-content",
+                "cover_image": ".thumb img",
+                "status": ".status",
+                "tags": ".genres a",
+                "chapter_list": ".eplister li",
+                "chapter_link": "a",
+                "chapter_content": ".entry-content",
+                "unwanted_elements": [".ad-container", ".advertisement"]
+            },
+            patterns={
+                "chapter_number": r"Chapter\s+(\d+)",
+                "unwanted_text": [
+                    r"Please support the translation team and read this chapter on our website.*",
+                    r"Join our Discord for updates.*",
+                    r"Please read this chapter on our website.*"
+                ]
+            },
+            use_playwright=True  # Asura Scans requires JavaScript for chapter list
+        )
+        super().__init__(config) 

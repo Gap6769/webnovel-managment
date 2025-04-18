@@ -1,17 +1,41 @@
 import re
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 from pydantic import HttpUrl
 from ..models.novel import Chapter
-from .base_scraper import BaseScraper
+from .base_scraper import BaseScraper, ScraperConfig
 
 class PastebinTBATEScraper(BaseScraper):
     """Scraper for TBATE chapters from Pastebin."""
     
     def __init__(self):
-        super().__init__()
-        self.name = "pastebin_tbate"
+        config = ScraperConfig(
+            name="pastebin_tbate",
+            base_url="https://pastebin.com",
+            content_type="novel",
+            selectors={},  # Pastebin doesn't use HTML selectors
+            patterns={
+                "chapter_number": r"Capítulo\s+(\d+)",
+                "next_chapter": r"Capítulo\s+\d+:\s+(https?://pastebin\.com/\w+)",
+                "unwanted_text": [
+                    r"Capítulo\s+\d+:\s+\d{2}/\d{2}/\d{4}.*",
+                    r"Please support the translation team.*",
+                    r"Join our Discord for updates.*"
+                ]
+            },
+            use_playwright=False
+        )
+        super().__init__(config)
         self.timeout = 15.0  # 15-second timeout for requests
+
+    def _convert_to_raw_url(self, url: str) -> str:
+        """Convert a Pastebin URL to its raw version."""
+        if "/raw/" in url:
+            return url
+        parts = url.split("pastebin.com/")
+        if len(parts) == 2 and parts[1]:
+            return f"https://pastebin.com/raw/{parts[1]}"
+        return url
 
     async def get_chapters(self, source_url: str, max_chapters: int = 50) -> List[Chapter]:
         """
@@ -28,38 +52,43 @@ class PastebinTBATEScraper(BaseScraper):
         print(f"Starting scrape operation for TBATE from {source_url}")
         
         try:
-            # Get the raw content from Pastebin
-            content = await self.fetch_html(source_url)
-            if not content:
-                raise Exception("Failed to fetch content from Pastebin")
+            async with self:
+                # Convert to raw URL and get content
+                raw_url = self._convert_to_raw_url(source_url)
+                print(f"Using raw URL: {raw_url}")
+                content = await self.fetch_html(raw_url)
+                if not content:
+                    raise Exception("Failed to fetch content from Pastebin")
 
-            # Parse the content
-            chapters, next_url = self.parse_chapters(content, source_url)
-            all_chapters = list(chapters)
+                # Parse the content
+                chapters, next_url = self.parse_chapters(content, source_url)
+                all_chapters = list(chapters)
 
-            # Follow next URLs if available and within limits
-            while next_url and len(all_chapters) < max_chapters:
-                print(f"Following next chapter link: {next_url}")
-                try:
-                    content = await self.fetch_html(next_url)
-                    if not content:
-                        break
+                # Follow next URLs if available and within limits
+                while next_url and len(all_chapters) < max_chapters:
+                    print(f"Following next chapter link: {next_url}")
+                    try:
+                        raw_url = self._convert_to_raw_url(next_url)
+                        print(f"Using raw URL: {raw_url}")
+                        content = await self.fetch_html(raw_url)
+                        if not content:
+                            break
+                            
+                        chapters, next_url = self.parse_chapters(content, next_url)
+                        all_chapters.extend(chapters)
                         
-                    chapters, next_url = self.parse_chapters(content, next_url)
-                    all_chapters.extend(chapters)
-                    
-                    if len(all_chapters) >= max_chapters:
-                        print(f"Reached maximum chapter limit ({max_chapters}), stopping")
-                        all_chapters = all_chapters[:max_chapters]
+                        if len(all_chapters) >= max_chapters:
+                            print(f"Reached maximum chapter limit ({max_chapters}), stopping")
+                            all_chapters = all_chapters[:max_chapters]
+                            break
+                    except Exception as e:
+                        print(f"Error following next link {next_url}: {e}")
                         break
-                except Exception as e:
-                    print(f"Error following next link {next_url}: {e}")
-                    break
 
-            elapsed = time.time() - start_time
-            print(f"Scrape operation completed in {elapsed:.2f} seconds, found {len(all_chapters)} chapters")
-            
-            return all_chapters
+                elapsed = time.time() - start_time
+                print(f"Scrape operation completed in {elapsed:.2f} seconds, found {len(all_chapters)} chapters")
+                
+                return all_chapters
         except Exception as e:
             elapsed = time.time() - start_time
             print(f"Error during scrape operation after {elapsed:.2f} seconds: {e}")
@@ -157,7 +186,24 @@ class PastebinTBATEScraper(BaseScraper):
         Returns:
             The chapter content as a string
         """
-        content = await self.fetch_html(chapter_url)
-        if not content:
-            raise Exception(f"Failed to fetch content from {chapter_url}")
-        return content 
+        async with self:
+            raw_url = self._convert_to_raw_url(chapter_url)
+            print(f"Using raw URL: {raw_url}")
+            content = await self.fetch_html(raw_url)
+            if not content:
+                raise Exception(f"Failed to fetch content from {chapter_url}")
+            return content
+
+    async def get_novel_info(self, url: str) -> Dict[str, Any]:
+        """Get novel information from the source."""
+        return {
+            'title': 'The Beginning After The End',
+            'author': 'TurtleMe',
+            'description': 'The Beginning After The End is a fantasy novel series written by TurtleMe.',
+            'cover_image_url': None,
+            'status': 'Ongoing',
+            'tags': ['Fantasy', 'Action', 'Adventure'],
+            'source_url': url,
+            'source_name': 'pastebin_tbate',
+            'type': 'novel'
+        } 

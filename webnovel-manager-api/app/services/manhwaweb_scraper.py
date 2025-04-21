@@ -5,6 +5,7 @@ import re
 from urllib.parse import urljoin
 from ..models.novel import Chapter
 from .base_scraper import BaseScraper, ScraperConfig
+from .storage_service import storage_service
 
 class ManhwaWebScraper(BaseScraper):
     """Scraper for manhwaweb.com website."""
@@ -203,8 +204,13 @@ class ManhwaWebScraper(BaseScraper):
             
             return chapters
     
-    async def get_chapter_content(self, url: str) -> dict:
+    async def get_chapter_content(self, url: str, novel_id: str, chapter_number: int) -> Dict[str, Any]:
         """Get the content of a specific chapter."""
+        # Check if we have a cached version
+        cached_content = await storage_service.get_chapter(novel_id, chapter_number, "manhwa")
+        if cached_content:
+            return cached_content
+
         async with self:
             if not self._page:
                 raise RuntimeError("Playwright page not initialized")
@@ -278,8 +284,13 @@ class ManhwaWebScraper(BaseScraper):
             # Ordenar las imágenes por su índice
             image_list.sort(key=lambda x: x["index"])
             
-            return {
+            content = {
                 "type": "manhwa",
                 "images": image_list,
                 "total_images": len(image_list)
-            } 
+            }
+            
+            # Cache the content
+            await storage_service.save_chapter(novel_id, chapter_number, content, "manhwa")
+            
+            return content 

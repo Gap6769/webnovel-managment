@@ -126,7 +126,7 @@ class NovelBinScraper(BaseScraper):
             print(f"Total chapters found: {len(chapters)}")
             return chapters
     
-    async def get_chapter_content(self, url: str) -> str:
+    async def get_chapter_content(self, url: str, *args, **kwargs) -> str:
         """Get the content of a specific chapter."""
         async with self:
             html = await self.fetch_html(url)

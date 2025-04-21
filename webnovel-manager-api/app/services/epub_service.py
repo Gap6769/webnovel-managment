@@ -13,6 +13,7 @@ import zipfile
 import io
 from .translation_service import translation_service
 from .scraper_service import scrape_chapter_content, ScraperError
+from .storage_service import storage_service
 
 class EpubService:
     def __init__(self):
@@ -30,11 +31,13 @@ class EpubService:
         paste_id = match.group(1)
         return f"https://pastebin.com/raw/{paste_id}"
         
-    async def fetch_chapter_content(self, chapter_url: HttpUrl, source_name: str) -> str:
+    async def fetch_chapter_content(self, chapter_url: HttpUrl, source_name: str, novel_id: str, chapter_number: int) -> str:
         """Obtiene el contenido de un capítulo desde su URL usando el servicio de scraping general."""
         try:
-            content = await scrape_chapter_content(str(chapter_url), source_name)
-            return content
+            result = await scrape_chapter_content(str(chapter_url), source_name, novel_id, chapter_number)
+            if isinstance(result, dict) and "content" in result:
+                return result["content"]
+            return str(result)
         except ScraperError as e:
             print(f"Error scraping chapter content: {str(e)}")
             raise
@@ -115,6 +118,12 @@ class EpubService:
         Create an EPUB file with the specified chapters.
         If translate is True, the content will be translated to Spanish.
         """
+        # Check if we have a cached version
+        if single_chapter:
+            cached_content = await storage_service.get_chapter(novel_id, single_chapter, "epub")
+            if cached_content:
+                return cached_content, self._get_epub_filename(novel_id, single_chapter=single_chapter)
+
         book = epub.EpubBook()
 
         # Set metadata
@@ -140,9 +149,21 @@ class EpubService:
 
         for chapter in chapters:
             try:
-                # Fetch and clean chapter content
-                raw_content = await self.fetch_chapter_content(chapter.url, source_name)
-                cleaned_content = self.clean_content(raw_content)
+                # Check if we have cached content
+                cached_content = await storage_service.get_chapter(novel_id, chapter.chapter_number, "raw")
+                if cached_content:
+                    raw_content = cached_content
+                else:
+                    # Fetch and clean chapter content
+                    raw_content = await self.fetch_chapter_content(
+                        chapter.url, 
+                        source_name, 
+                        novel_id, 
+                        chapter.chapter_number
+                    )
+                    cleaned_content = self.clean_content(raw_content)
+                    # Cache the raw content
+                    await storage_service.save_chapter(novel_id, chapter.chapter_number, cleaned_content, "raw")
                 
                 # Create chapter content
                 content = f"<h1>Chapter {chapter.chapter_number}</h1>"
@@ -195,6 +216,10 @@ class EpubService:
         # Read the file and return bytes
         with open(filename, 'rb') as f:
             epub_bytes = f.read()
+        
+        # Cache the EPUB if it's a single chapter
+        if single_chapter:
+            await storage_service.save_chapter(novel_id, single_chapter, epub_bytes, "epub")
         
         # Clean up
         os.remove(filename)

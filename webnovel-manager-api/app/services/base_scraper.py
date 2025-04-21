@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 from ..models.novel import Chapter
 from playwright.async_api import async_playwright, Browser, Page
 import re
+from .storage_service import storage_service
 
 class ScraperConfig(BaseModel):
     """Configuration for a scraper instance."""
@@ -53,6 +54,7 @@ class BaseScraper:
         self._client: Optional[httpx.AsyncClient] = None
         self._browser: Optional[Browser] = None
         self._page: Optional[Page] = None
+        self._context = None
     
     async def __aenter__(self):
         """Context manager entry."""
@@ -63,9 +65,10 @@ class BaseScraper:
         )
         
         if self.config.use_playwright:
-            playwright = await async_playwright().start()
-            self._browser = await playwright.chromium.launch()
-            self._page = await self._browser.new_page()
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch()
+            self._context = await self._browser.new_context()
+            self._page = await self._context.new_page()
         
         return self
     
@@ -82,6 +85,9 @@ class BaseScraper:
         if self._browser:
             await self._browser.close()
             self._browser = None
+        
+        if hasattr(self, '_playwright'):
+            await self._playwright.stop()
     
     async def fetch_html(self, url: str) -> str:
         """Fetch HTML content from a URL with retries."""
@@ -114,7 +120,7 @@ class BaseScraper:
         """Get novel chapters from the source."""
         raise NotImplementedError("Subclasses must implement get_chapters")
     
-    async def get_chapter_content(self, url: str) -> str:
+    async def get_chapter_content(self, url: str, novel_id: str, chapter_number: int) -> Dict[str, Any]:
         """Get the content of a specific chapter."""
         raise NotImplementedError("Subclasses must implement get_chapter_content")
     

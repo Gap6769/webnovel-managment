@@ -84,3 +84,5 @@ payload/
 *.appxbundle
 *.appxupload
 *.msixupload
+
+storage/

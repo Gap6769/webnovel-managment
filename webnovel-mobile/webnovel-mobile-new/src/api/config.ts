@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // Configuración de la API
-const API_BASE_URL = 'http://192.168.1.87:8001';
+const API_BASE_URL = 'http://192.168.1.85:8001';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,

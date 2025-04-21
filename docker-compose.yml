@@ -24,6 +24,7 @@ services:
       - "8001:8000"
     environment:
       - MONGODB_URL=mongodb://mongo:27017
+      - DEEPL_API_KEY=tu_api_key_aqui
     networks:
       - default
       - mongodb_default

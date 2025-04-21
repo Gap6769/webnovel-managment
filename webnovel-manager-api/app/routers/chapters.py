@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 import io
 from datetime import datetime
 from ..services.translation_service import translation_service
+from ..services.storage_service import storage_service
 
 router = APIRouter()
 NOVEL_COLLECTION = "novels"
@@ -81,7 +82,7 @@ async def download_chapter(
     try:
         # Si es un manhwa, devolver el contenido en formato raw
         if novel.get("type") == NovelType.MANHWA:
-            content = await scrape_chapter_content(str(chapter.url), novel["source_name"])
+            content = await scrape_chapter_content(str(chapter.url), novel["source_name"], str(novel_id), chapter_number)
             
             # Update chapter status
             await db[NOVEL_COLLECTION].update_one(
@@ -128,15 +129,34 @@ async def download_chapter(
                 }
             )
         else:  # format == "raw"
-            # Get raw chapter content
-            raw_content = await epub_service.fetch_chapter_content(
-                chapter_url=str(chapter.url),
-                source_name=novel["source_name"],
-            )
-            cleaned_content = epub_service.clean_content(raw_content)
+            # Check if we have cached content
+            cached_content = await storage_service.get_chapter(novel, chapter_number, "raw", language)
+            if cached_content:
+                cleaned_content = cached_content
+            else:
+                # Get raw chapter content
+                raw_content = await epub_service.fetch_chapter_content(
+                    chapter_url=str(chapter.url),
+                    source_name=novel["source_name"],
+                    novel_id=str(novel_id),
+                    chapter_number=chapter_number
+                )
+                cleaned_content = epub_service.clean_content(raw_content)
+                # Cache the content
             
-            if language == "es" and novel["source_language"] == "en":
-                cleaned_content = await translation_service.translate_text(cleaned_content)
+                if language == "es" and novel["source_language"] == "en":
+                    cleaned_content = await translation_service.translate_text(cleaned_content)
+                    
+                await storage_service.save_chapter(novel, chapter_number, cleaned_content, "raw", language)
+            await db[NOVEL_COLLECTION].update_one(
+                {"_id": novel_id, "chapters.chapter_number": chapter_number},
+                {
+                    "$set": {
+                        "chapters.$.downloaded": True,
+                        "chapters.$.read": True
+                    }
+                }
+            )
             
             return {
                 "title": chapter.title,
@@ -186,7 +206,7 @@ async def download_chapters(
         if novel.get("type") == NovelType.MANHWA:
             chapters_content = []
             for chapter in chapters:
-                content = await scrape_chapter_content(str(chapter.url), novel["source_name"])
+                content = await scrape_chapter_content(str(chapter.url), novel["source_name"], str(novel_id), chapter.chapter_number)
                 chapters_content.append({
                     "chapter_number": chapter.chapter_number,
                     "title": chapter.title,

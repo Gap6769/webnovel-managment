@@ -10,9 +10,11 @@ from .pastebin_tbate_scraper import PastebinTBATEScraper
 from .manhwa_scraper import AsuraScansScraper
 from .generic_scraper import GenericScraper
 from .manhwaweb_scraper import ManhwaWebScraper
+from .skynovels_scraper import SkyNovelsScraper
 import time
 import asyncio
 import re
+from .storage_service import storage_service
 
 class ScraperError(Exception):
     """Custom exception for scraping errors."""
@@ -201,7 +203,8 @@ SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "novelbin": NovelBinScraper,
     "pastebin_tbate": PastebinTBATEScraper,
     "asurascans": AsuraScansScraper,
-    "manhwaweb": ManhwaWebScraper
+    "manhwaweb": ManhwaWebScraper,
+    "skynovels": SkyNovelsScraper
 }
 
 def get_scraper_for_source(source_name: str) -> BaseScraper:
@@ -237,67 +240,35 @@ async def create_generic_scraper(
         special_actions=config.special_actions
     )
 
-async def scrape_chapters_for_novel(
-    source_url: str, 
-    source_name: str,
-    recursive: bool = False,
-    max_chapters: int = 50,
-    visited_urls: Optional[Set[str]] = None
-) -> List[Chapter]:
-    """
-    Fetches and parses chapters for a given novel source URL and name.
+async def scrape_chapters_for_novel(url: str, source_name: str) -> List[Chapter]:
+    """Scrape chapters for a novel from the source website."""
+    scraper = get_scraper_for_source(source_name)
+    return await scraper.get_chapters(url)
+
+async def scrape_chapter_content(url: str, source_name: str, novel_id: str, chapter_number: int) -> Dict[str, Any]:
+    """Scrape the content of a specific chapter."""
+    scraper = get_scraper_for_source(source_name)
+    return await scraper.get_chapter_content(url, novel_id, chapter_number)
+
+def get_scraper(source_name: str) -> BaseScraper:
+    """Get the appropriate scraper for the source."""
+    from .manhwaweb_scraper import ManhwaWebScraper
+    from .novelupdates_scraper import NovelUpdatesScraper
+    from .wuxiaworld_scraper import WuxiaWorldScraper
+    from .skynovels_scraper import SkyNovelsScraper
     
-    Args:
-        source_url: The URL of the novel or chapter to scrape.
-        source_name: Name of the source, used to select the appropriate parser.
-        recursive: If True, follow links to next chapters and scrape them too.
-        max_chapters: Maximum number of chapters to scrape when in recursive mode.
-        visited_urls: Set of URLs already visited (to prevent cycles).
-        
-    Returns:
-        List of Chapter objects.
-    """
-    start_time = time.time()
-    print(f"Starting scrape operation for {source_name} from {source_url}")
+    scrapers = {
+        "manhwaweb": ManhwaWebScraper,
+        "novelupdates": NovelUpdatesScraper,
+        "wuxiaworld": WuxiaWorldScraper,
+        "skynovels": SkyNovelsScraper
+    }
     
-    # Keep track of visited URLs to prevent cycles
-    if visited_urls is None:
-        visited_urls = set()
+    scraper_class = scrapers.get(source_name)
+    if not scraper_class:
+        raise ScraperError(f"Unsupported source: {source_name}")
     
-    # Don't revisit URLs
-    if source_url in visited_urls:
-        print(f"URL already visited: {source_url}, skipping")
-        return []
-    
-    # Add this URL to visited set
-    visited_urls.add(source_url)
-    
-    try:
-        # Get the appropriate scraper
-        scraper = get_scraper_for_source(source_name)
-        
-        # Get chapters using the scraper
-        chapters = await scraper.get_chapters(source_url, max_chapters)
-        
-        # If recursive mode is enabled and we have a next chapter URL
-        if recursive and hasattr(scraper, 'next_chapter_url') and scraper.next_chapter_url:
-            next_chapters = await scrape_chapters_for_novel(
-                scraper.next_chapter_url,
-                source_name,
-                recursive=True,
-                max_chapters=max_chapters - len(chapters),
-                visited_urls=visited_urls
-            )
-            chapters.extend(next_chapters)
-        
-        elapsed = time.time() - start_time
-        print(f"Scrape operation completed in {elapsed:.2f} seconds, found {len(chapters)} chapters")
-        return chapters
-        
-    except Exception as e:
-        elapsed = time.time() - start_time
-        print(f"Error during scrape operation after {elapsed:.2f} seconds: {e}")
-        raise ScraperError(f"Failed to scrape chapters: {str(e)}")
+    return scraper_class()
 
 async def scrape_novel_info(source_url: str, source_name: str) -> Dict[str, Any]:
     """Scrape novel information from its source."""
@@ -306,14 +277,6 @@ async def scrape_novel_info(source_url: str, source_name: str) -> Dict[str, Any]
         return await scraper.get_novel_info(source_url)
     except Exception as e:
         raise ScraperError(f"Failed to scrape novel info: {str(e)}")
-
-async def scrape_chapter_content(chapter_url: str, source_name: str) -> str:
-    """Scrape the content of a specific chapter."""
-    try:
-        scraper = get_scraper_for_source(source_name)
-        return await scraper.get_chapter_content(chapter_url)
-    except Exception as e:
-        raise ScraperError(f"Failed to scrape chapter content: {str(e)}")
 
 # For backward compatibility during transition
 parse_chapters_pastebin_tbate.__annotations__["return"] = Tuple[List[Chapter], Optional[str]] 

@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Dict, Any
 from pydantic import HttpUrl
 from ..models.novel import Chapter
 from .base_scraper import BaseScraper, ScraperConfig
+from .storage_service import storage_service
 
 class PastebinTBATEScraper(BaseScraper):
     """Scraper for TBATE chapters from Pastebin."""
@@ -176,23 +177,43 @@ class PastebinTBATEScraper(BaseScraper):
         
         return chapters, next_chapter_url
 
-    async def get_chapter_content(self, chapter_url: str) -> str:
+    async def get_chapter_content(self, url: str, novel_id: str, chapter_number: int) -> Dict[str, Any]:
         """
         Get the content of a specific chapter.
         
         Args:
-            chapter_url: The URL of the chapter
+            url: The URL of the chapter
+            novel_id: The ID of the novel
+            chapter_number: The chapter number
             
         Returns:
-            The chapter content as a string
+            A dictionary containing the chapter content and metadata
         """
+        # Check if we have a cached version
+        cached_content = await storage_service.get_chapter(novel_id, chapter_number, "raw")
+        if cached_content:
+            return {
+                "type": "novel",
+                "content": cached_content
+            }
+
         async with self:
-            raw_url = self._convert_to_raw_url(chapter_url)
+            raw_url = self._convert_to_raw_url(url)
             print(f"Using raw URL: {raw_url}")
             content = await self.fetch_html(raw_url)
             if not content:
-                raise Exception(f"Failed to fetch content from {chapter_url}")
-            return content
+                raise Exception(f"Failed to fetch content from {url}")
+            
+            # Clean the content
+            content = self._clean_content(content)
+            
+            # Cache the content
+            await storage_service.save_chapter(novel_id, chapter_number, content, "raw")
+            
+            return {
+                "type": "novel",
+                "content": content
+            }
 
     async def get_novel_info(self, url: str) -> Dict[str, Any]:
         """Get novel information from the source."""

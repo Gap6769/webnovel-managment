@@ -32,11 +32,22 @@ export const useNovel = (id: string) => {
 };
 
 export const useCreateNovel = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
-    mutationFn: async (novel: Partial<Novel>) => {
-      const response = await api.post(API_ENDPOINTS.NOVELS, novel);
+    mutationFn: async (novelData: {
+      title: string;
+      source_url: string;
+      source_name: string;
+      source_language: string;
+      type: 'novel' | 'manhwa';
+    }) => {
+      const response = await api.post('/api/v1/novels/', novelData);
       return response.data;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['novels'] });
+    }
   });
 };
 
@@ -107,7 +118,7 @@ export const useChapter = (novelId: string, chapterNumber: number) => {
         throw error;
       }
     },
-    retry: 2, // Intentar 2 veces más en caso de error
+    retry: 1, // Intentar 2 veces más en caso de error
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Retry con backoff exponencial
   });
 };

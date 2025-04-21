@@ -16,10 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.webnovelmanager.app",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.webnovelmanager.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -51,7 +48,9 @@
         "projectId": "386ae90d-ad80-4e8c-b33f-66673484f08b"
       }
     },
-"runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "url": "https://u.expo.dev/386ae90d-ad80-4e8c-b33f-66673484f08b"
     }

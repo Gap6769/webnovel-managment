@@ -207,13 +207,34 @@ const ReaderScreen = () => {
         </TouchableOpacity>
       )}
 
-      {!isFullscreen && !isManhwa && (
+      {!isManhwa && (
         <>
           <ProgressBar progress={calculateReadingProgress()} color="#ccc" style={styles.progressBar} />
-          <View style={[styles.footer, { backgroundColor: '#2a2a2a', paddingBottom: insets.bottom }]}>
-            <IconButton icon="chevron-left" size={24} onPress={() => navigation.navigate('Reader', { novelId, chapterNumber: chapterNumber - 1 })} disabled={chapterNumber <= 1} iconColor="#ccc" />
+          <View style={[
+            styles.footer, 
+            { 
+              backgroundColor: isFullscreen ? 'rgba(42, 42, 42, 0.8)' : '#2a2a2a',
+              paddingBottom: insets.bottom,
+              position: isFullscreen ? 'absolute' : 'relative',
+              bottom: isFullscreen ? 0 : undefined,
+              left: isFullscreen ? 0 : undefined,
+              right: isFullscreen ? 0 : undefined,
+            }
+          ]}>
+            <IconButton 
+              icon="chevron-left" 
+              size={24} 
+              onPress={() => navigation.navigate('Reader', { novelId, chapterNumber: chapterNumber - 1 })} 
+              disabled={chapterNumber <= 1} 
+              iconColor="#ccc" 
+            />
             <Text style={{ color: '#ccc' }}>{Math.round(calculateReadingProgress() * 100)}%</Text>
-            <IconButton icon="chevron-right" size={24} onPress={() => navigation.navigate('Reader', { novelId, chapterNumber: chapterNumber + 1 })} iconColor="#ccc" />
+            <IconButton 
+              icon="chevron-right" 
+              size={24} 
+              onPress={() => navigation.navigate('Reader', { novelId, chapterNumber: chapterNumber + 1 })} 
+              iconColor="#ccc" 
+            />
           </View>
         </>
       )}

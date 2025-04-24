@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, ImageBackground, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import { Text, Card, Button, ActivityIndicator, IconButton, Menu, Chip, Divider, Badge, Portal, Snackbar, Modal } from 'react-native-paper';
 import { useNovel, useChapters, useDeleteNovel, useFetchChapters } from '../api/contentApi';
@@ -38,15 +38,94 @@ const NovelDetailsScreen = () => {
   const { mutate: fetchChapters, isPending: isUpdating } = useFetchChapters();
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allChapters, setAllChapters] = useState<Chapter[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const { data: novel, isLoading: novelLoading, error: novelError, refetch: refetchNovel } = useNovel(novelId);
-  const { data: chapters, isLoading: chaptersLoading, error: chaptersError, refetch: refetchChapters } = useChapters(novelId);
+  const { data: chaptersData, isLoading: chaptersLoading, error: chaptersError, refetch: refetchChapters } = useChapters(novelId, currentPage, sortOrder);
+
+  // Actualizar el sortOrder cuando los datos de la novela estén disponibles
+  useEffect(() => {
+    if (novel?.total_chapters) {
+      // Si no ha leído ningún capítulo o está en los primeros capítulos, mostrar más antiguos primero
+      const lastReadPercentage = novel.read_chapters ? (novel.read_chapters / novel.total_chapters) * 100 : 0;
+      console.log('lastReadPercentage', lastReadPercentage);
+      const newSortOrder = lastReadPercentage < 20 ? 'asc' : 'desc';
+      console.log('Setting sort order to:', newSortOrder);
+      setSortOrder(newSortOrder);
+    }
+  }, [novel?.read_chapters, novel?.total_chapters]);
+
+  // Calculate if there are more chapters to load
+  const hasMoreChapters = useMemo(() => {
+    return currentPage < totalPages;
+  }, [currentPage, totalPages]);
+
+  // Memoize the chapters list to prevent unnecessary re-renders
+  const memoizedChapters = useMemo(() => {
+    return allChapters;
+  }, [allChapters]);
+
+  // Update all chapters and pagination info when new data arrives
+  useEffect(() => {
+    if (chaptersData) {
+      setTotalPages(chaptersData.total_pages);
+      
+      if (currentPage === 1) {
+        setAllChapters(chaptersData.chapters);
+      } else {
+        // Filtrar capítulos duplicados antes de agregarlos
+        const newChapters = chaptersData.chapters.filter((newChapter: Chapter) => 
+          !allChapters.some((existingChapter: Chapter) => 
+            existingChapter.chapter_number === newChapter.chapter_number
+          )
+        );
+        if (newChapters.length > 0) {
+          setAllChapters(prev => [...prev, ...newChapters]);
+        }
+      }
+      setIsLoadingMore(false);
+    }
+  }, [chaptersData, currentPage]);
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    setCurrentPage(1);
+    setAllChapters([]);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setCurrentPage(1);
     await Promise.all([refetchNovel(), refetchChapters()]);
     setRefreshing(false);
   };
+
+  const loadMoreChapters = useCallback(() => {
+    if (!isLoadingMore && hasMoreChapters) {
+      setIsLoadingMore(true);
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [isLoadingMore, hasMoreChapters]);
+
+  const handleScroll = useCallback((event: any) => {
+    // Handle header animation
+    const { y } = event.nativeEvent.contentOffset;
+    scrollY.setValue(y);
+
+    // Handle lazy loading
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 50;
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+
+    if (isCloseToBottom && !isLoadingMore && hasMoreChapters) {
+      loadMoreChapters();
+    }
+  }, [loadMoreChapters, isLoadingMore, hasMoreChapters, scrollY]);
 
   const handleUpdateChapters = () => {
     setMenuVisible(false);
@@ -140,12 +219,11 @@ const NovelDetailsScreen = () => {
       </Animated.View>
 
       <Animated.ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -231,9 +309,20 @@ const NovelDetailsScreen = () => {
             </View>
           )}
 
-          <Text variant="titleLarge" style={styles.sectionTitle}>Chapters</Text>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleLarge" style={styles.sectionTitle}>Chapters</Text>
+            <Button
+              mode="outlined"
+              onPress={toggleSortOrder}
+              icon={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'}
+              style={styles.sortButton}
+              textColor="#fff"
+            >
+              {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+            </Button>
+          </View>
           <View style={styles.chaptersContainer}>
-            {chapters?.chapters.map((chapter: Chapter) => (
+            {memoizedChapters.map((chapter: Chapter) => (
               <Card
                 key={`${novelId}-${chapter.chapter_number}-${chapter.title}`}
                 style={styles.chapterCard}
@@ -264,14 +353,18 @@ const NovelDetailsScreen = () => {
                       }}>
                         <Check size={14} color="#fff" />
                       </View>
-                      
                     )}
-  
                   </View>
                 </Card.Content>
               </Card>
             ))}
           </View>
+
+          {isLoadingMore && (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color="#ccc" />
+            </View>
+          )}
         </View>
       </Animated.ScrollView>
 
@@ -453,10 +546,16 @@ const styles = StyleSheet.create({
     color: '#7c4dff',
     fontWeight: '500',
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     color: '#fff',
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   chaptersContainer: {
     marginBottom: 80,
@@ -482,11 +581,9 @@ const styles = StyleSheet.create({
   chapterStatus: {
     flexDirection: 'row',
     gap: 8,
-
   },
   readChip: {
     backgroundColor: 'rgba(76, 175, 80, 0.7)',
-
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 100,
@@ -503,6 +600,14 @@ const styles = StyleSheet.create({
   },
   readButton: {
     borderRadius: 8,
+  },
+  loadingMore: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  sortButton: {
+    borderColor: '#444',
+    backgroundColor: '#333',
   },
 });
 

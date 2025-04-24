@@ -85,3 +85,5 @@ payload/
 *.appxupload
 *.msixupload
 
+*.jpg
+*.txt

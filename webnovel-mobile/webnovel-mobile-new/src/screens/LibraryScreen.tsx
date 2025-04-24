@@ -248,7 +248,7 @@ const LibraryScreen = ({ navigation }: { navigation: any }) => {
       ) : (
         <View style={styles.headerContainer}>
           <View style={styles.headerRow}>
-            <Text variant="headlineMedium" style={styles.header}>My Library uwu</Text>
+            <Text variant="headlineMedium" style={styles.header}>My Library</Text>
             <View style={styles.headerButtons}>
               <TouchableOpacity 
                 style={styles.iconButton}

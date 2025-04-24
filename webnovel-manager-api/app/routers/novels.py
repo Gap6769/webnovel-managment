@@ -1,16 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
-from ..models.novel import NovelCreate, NovelPublic, NovelUpdate, PyObjectId, NovelSummary, NovelDetail, ChapterDownloadResponse, Chapter, NovelType
+from ..models.novel import NovelCreate, NovelPublic, NovelUpdate, PyObjectId, NovelSummary, NovelDetail, ChapterDownloadResponse, NovelType
 from ..db.database import get_database
-from ..services.scraper_service import scrape_chapters_for_novel, scrape_novel_info, ScraperError
+from ..services.scraper_service import scrape_novel_info, ScraperError
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
-from datetime import datetime
-from ..services.epub_service import EpubService
+from ..repositories.novel_repository import NovelRepository
 
 router = APIRouter()
-NOVEL_COLLECTION = "novels"
-epub_service = EpubService()
+
+def get_novel_repository(db: AsyncIOMotorDatabase = Depends(get_database)) -> NovelRepository:
+    return NovelRepository(db)
 
 @router.post(
     "/", 
@@ -20,12 +19,11 @@ epub_service = EpubService()
 )
 async def create_novel(
     novel_in: NovelCreate,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Adds a new novel to the library."""
     # Check if novel with the same source_url already exists
-    existing_novel = await db[NOVEL_COLLECTION].find_one({"source_url": str(novel_in.source_url)})
-    if existing_novel:
+    if await novel_repository.exists_by_source_url(str(novel_in.source_url)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, 
             detail=f"Novel from source URL {novel_in.source_url} already exists."
@@ -46,274 +44,102 @@ async def create_novel(
                 detail=f"Failed to scrape novel info: {str(e)}"
             )
     
-    # Dump model to dict, excluding unset fields
-    novel_dict = novel_in.model_dump(exclude_unset=True)
-    
-    # Ensure URLs are stored as strings
-    if 'source_url' in novel_dict:
-        novel_dict['source_url'] = str(novel_dict['source_url'])
-    if 'cover_image_url' in novel_dict and novel_dict['cover_image_url']:
-        novel_dict['cover_image_url'] = str(novel_dict['cover_image_url'])
-        
-    # Add timestamps
-    novel_dict["added_at"] = datetime.utcnow()
-    novel_dict["last_updated_api"] = datetime.utcnow()
-    
-    insert_result = await db[NOVEL_COLLECTION].insert_one(novel_dict)
-    created_novel = await db[NOVEL_COLLECTION].find_one({"_id": insert_result.inserted_id})
-    
-    if created_novel is None:
-         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create novel after insert.")
-
-    return NovelPublic(**created_novel)
+    created_novel = await novel_repository.create(novel_in)
+    return NovelPublic(**created_novel.model_dump())
 
 @router.get("/", response_model=List[NovelSummary], tags=["novels"])
 async def get_novels(
-    db: AsyncIOMotorDatabase = Depends(get_database),
-    skip: int = 0,
-    limit: int = 100,
-    type: Optional[NovelType] = None
+    novel_repository: NovelRepository = Depends(get_novel_repository),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(100, ge=1, le=100, description="Number of items to return"),
+    type: Optional[NovelType] = Query(None, description="Filter by novel type"),
+    status: Optional[str] = Query(None, description="Filter by novel status"),
+    source_name: Optional[str] = Query(None, description="Filter by source name"),
+    search: Optional[str] = Query(None, description="Search in title and description")
 ):
-    """Retrieves a list of all novels in the library with summary information."""
+    """Retrieves a list of novels with filtering options."""
     query = {}
+    
     if type:
         query["type"] = type
+    if status:
+        query["status"] = status
+    if source_name:
+        query["source_name"] = source_name
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
     
-    novels_cursor = db[NOVEL_COLLECTION].find(query).skip(skip).limit(limit)
-    novels = await novels_cursor.to_list(length=limit)
-    
-    # Convert to NovelSummary with calculated fields
-    novel_summaries = []
-    for novel in novels:
-        chapters = novel.get("chapters", [])
-        total_chapters = len(chapters)
-        read_chapters = sum(1 for c in chapters if c.get("read", False))
-        downloaded_chapters = sum(1 for c in chapters if c.get("downloaded", False))
-        last_chapter = max((c["chapter_number"] for c in chapters), default=0)
-        
-        novel_summaries.append(NovelSummary(
-            _id=novel["_id"],
-            title=novel["title"],
-            author=novel.get("author"),
-            cover_image_url=novel.get("cover_image_url"),
-            status=novel.get("status"),
-            type=novel.get("type", NovelType.NOVEL),
-            total_chapters=total_chapters,
-            last_chapter_number=last_chapter,
-            read_chapters=read_chapters,
-            downloaded_chapters=downloaded_chapters,
-            last_updated_chapters=novel.get("last_updated_chapters"),
-            added_at=novel["added_at"]
-        ))
-    
-    return novel_summaries
+    return await novel_repository.filter(query, skip=skip, limit=limit)
 
 @router.get("/{novel_id}", response_model=NovelDetail, tags=["novels"])
 async def get_novel_by_id(
     novel_id: PyObjectId,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Retrieves a specific novel by its ID with detailed information."""
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
-    
-    # Calculate reading progress
-    chapters = novel.get("chapters", [])
-    total_chapters = len(chapters)
-    read_chapters = sum(1 for c in chapters if c.get("read", False))
-    reading_progress = (read_chapters / total_chapters * 100) if total_chapters > 0 else 0
-    
-    return NovelDetail(
-        _id=novel["_id"],
-        title=novel["title"],
-        author=novel.get("author"),
-        cover_image_url=novel.get("cover_image_url"),
-        status=novel.get("status"),
-        type=novel.get("type", NovelType.NOVEL),
-        total_chapters=total_chapters,
-        last_chapter_number=max((c["chapter_number"] for c in chapters), default=0),
-        read_chapters=read_chapters,
-        downloaded_chapters=sum(1 for c in chapters if c.get("downloaded", False)),
-        last_updated_chapters=novel.get("last_updated_chapters"),
-        added_at=novel["added_at"],
-        description=novel.get("description"),
-        source_url=novel["source_url"],
-        source_name=novel["source_name"],
-        tags=novel.get("tags", []),
-        reading_progress=reading_progress
-    )
+    return novel
 
 @router.patch("/{novel_id}", response_model=NovelDetail, tags=["novels"])
 async def update_novel(
     novel_id: PyObjectId,
-    novel_update: NovelUpdate = Body(...),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_update: NovelUpdate,
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Updates an existing novel."""
-    update_data = novel_update.model_dump(exclude_unset=True)
-    
-    if not update_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
-
-    # Ensure URLs are stored as strings if they are being updated
-    if 'source_url' in update_data and update_data['source_url']:
-        update_data['source_url'] = str(update_data['source_url'])
-    if 'cover_image_url' in update_data and update_data['cover_image_url']:
-        update_data['cover_image_url'] = str(update_data['cover_image_url'])
-    if 'source_language' in update_data and update_data['source_language']:
-        update_data['source_language'] = str(update_data['source_language'])
-
-    # Ensure we update the timestamp
-    update_data["last_updated_api"] = datetime.utcnow()
-
-    result = await db[NOVEL_COLLECTION].update_one(
-        {"_id": novel_id},
-        {"$set": update_data}
-    )
-
-    if result.matched_count == 0:
+    updated_novel = await novel_repository.update(novel_id, novel_update)
+    if updated_novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
-
-    # Return the updated novel with all details
-    return await get_novel_by_id(novel_id, db)
+    return updated_novel
 
 @router.delete("/{novel_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["novels"])
 async def delete_novel(
     novel_id: PyObjectId,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Deletes a novel from the library."""
-    result = await db[NOVEL_COLLECTION].delete_one({"_id": novel_id})
-    if result.deleted_count == 0:
+    success = await novel_repository.delete(novel_id)
+    if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
     return
-
 
 @router.patch("/{novel_id}/reading-progress", response_model=NovelDetail, tags=["novels"])
 async def update_reading_progress(
     novel_id: PyObjectId,
     current_chapter: int = Query(..., description="The current chapter number being read"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Update the reading progress of a novel by marking chapters as read and downloaded up to the current chapter."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
-    if novel is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
-    
-    # Get all chapters
-    chapters = novel.get("chapters", [])
-    if not chapters:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No chapters available for this novel")
-    
-    # Update chapter statuses
-    for chapter in chapters:
-        chapter_number = chapter["chapter_number"]
-        if chapter_number < current_chapter:
-            # Mark chapters before current as read and downloaded
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.read": True,
-                        "chapters.$.downloaded": True
-                    }
-                }
-            )
-        elif chapter_number == current_chapter:
-            # Mark current chapter as neither read nor downloaded
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.read": False,
-                        "chapters.$.downloaded": False
-                    }
-                }
-            )
-        else:
-            # Mark chapters after current as neither read nor downloaded
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.read": False,
-                        "chapters.$.downloaded": False
-                    }
-                }
-            )
-    
-    # Return the updated novel
-    updated_novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    updated_novel = await novel_repository.update_reading_progress(novel_id, current_chapter)
     if updated_novel is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated novel")
-    
-    # Calculate reading progress
-    total_chapters = len(updated_novel.get("chapters", []))
-    read_chapters = sum(1 for c in updated_novel.get("chapters", []) if c.get("read", False))
-    reading_progress = (read_chapters / total_chapters * 100) if total_chapters > 0 else 0
-    
-    return NovelDetail(
-        _id=updated_novel["_id"],
-        title=updated_novel["title"],
-        author=updated_novel.get("author"),
-        cover_image_url=updated_novel.get("cover_image_url"),
-        status=updated_novel.get("status"),
-        type=updated_novel.get("type", NovelType.NOVEL),
-        total_chapters=total_chapters,
-        last_chapter_number=max((c["chapter_number"] for c in updated_novel.get("chapters", [])), default=0),
-        read_chapters=read_chapters,
-        downloaded_chapters=sum(1 for c in updated_novel.get("chapters", []) if c.get("downloaded", False)),
-        last_updated_chapters=updated_novel.get("last_updated_chapters"),
-        added_at=updated_novel["added_at"],
-        description=updated_novel.get("description"),
-        source_url=updated_novel["source_url"],
-        source_name=updated_novel["source_name"],
-        tags=updated_novel.get("tags", []),
-        reading_progress=reading_progress
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
+    return updated_novel
 
 @router.post("/{novel_id}/metadata", response_model=NovelDetail, tags=["novels"])
 async def update_metadata(
     novel_id: PyObjectId,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Update the metadata of a novel by scraping it from the source website."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    # Find the novel to get source information
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
     
     try:
         # Scrape novel info from source
-        novel_info = await scrape_novel_info(str(novel["source_url"]), novel["source_name"])
+        novel_info = await scrape_novel_info(str(novel.source_url), novel.source_name)
         
         # Update novel with new metadata
-        update_data = {
-            "title": novel_info["title"],
-            "author": novel_info["author"],
-            "description": novel_info["description"],
-            "cover_image_url": novel_info["cover_image_url"],
-            "tags": novel_info["tags"],
-            "status": novel_info["status"],
-            "last_updated_api": datetime.utcnow()
-        }
-        
-        # Ensure URLs are stored as strings
-        if update_data["cover_image_url"]:
-            update_data["cover_image_url"] = str(update_data["cover_image_url"])
-        
-        result = await db[NOVEL_COLLECTION].update_one(
-            {"_id": novel_id},
-            {"$set": update_data}
-        )
-        
-        if result.matched_count == 0:
+        updated_novel = await novel_repository.update_metadata(novel_id, novel_info)
+        if updated_novel is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
-        
-        # Return the updated novel with all details
-        return await get_novel_by_id(novel_id, db)
+        return updated_novel
         
     except ScraperError as e:
         raise HTTPException(

@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, TextInput, useTheme, ActivityIndicator } from 'react-native-paper';
+import { Text, Button, TextInput, useTheme, ActivityIndicator, Menu } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCreateNovel } from '../api/contentApi';
+import { useCreateNovel, useSources } from '../api/contentApi';
 
 const AddContentScreen = ({ navigation }: { navigation: any }) => {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+  const [sourceMenuVisible, setSourceMenuVisible] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     source_url: '',
     source_name: '',
     source_language: '',
-    type: 'novel' as const
+    type: 'novel' as 'novel' | 'manhwa'
   });
 
   const createNovel = useCreateNovel();
+  const { data: sources, isLoading: sourcesLoading } = useSources();
 
   const handleSubmit = async () => {
     try {
@@ -29,6 +32,13 @@ const AddContentScreen = ({ navigation }: { navigation: any }) => {
   const handleChange = (field: keyof typeof formData) => (value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  const typeLabels = {
+    novel: 'Novela',
+    manhwa: 'Manhwa'
+  };
+
+  const filteredSources = sources?.filter(source => source.content_type === formData.type) || [];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: '#2a2a2a' }]}>
@@ -44,7 +54,7 @@ const AddContentScreen = ({ navigation }: { navigation: any }) => {
       </View>
       
       <ScrollView style={styles.content}>
-        <Text variant="headlineMedium" style={styles.title}>Add New Novel</Text>
+        <Text variant="headlineMedium" style={styles.title}>Add New Content</Text>
         
         <TextInput
           label="Title"
@@ -69,16 +79,70 @@ const AddContentScreen = ({ navigation }: { navigation: any }) => {
           keyboardType="url"
         />
 
-        <TextInput
-          label="Source Name"
-          value={formData.source_name}
-          onChangeText={handleChange('source_name')}
-          style={styles.input}
-          mode="outlined"
-          textColor="#fff"
-          outlineColor="#444"
-          activeOutlineColor={theme.colors.primary}
-        />
+        <Menu
+          visible={typeMenuVisible}
+          onDismiss={() => setTypeMenuVisible(false)}
+          anchor={
+            <Button
+              mode="outlined"
+              onPress={() => setTypeMenuVisible(true)}
+              style={styles.typeButton}
+              textColor="#fff"
+              icon="chevron-down"
+            >
+              Type: {typeLabels[formData.type]}
+            </Button>
+          }
+        >
+          <Menu.Item 
+            onPress={() => {
+              setFormData(prev => ({ ...prev, type: 'novel' }));
+              setTypeMenuVisible(false);
+            }} 
+            title="Novela" 
+          />
+          <Menu.Item 
+            onPress={() => {
+              setFormData(prev => ({ ...prev, type: 'manhwa' }));
+              setTypeMenuVisible(false);
+            }} 
+            title="Manhwa" 
+          />
+        </Menu>
+
+        <Menu
+          visible={sourceMenuVisible}
+          onDismiss={() => setSourceMenuVisible(false)}
+          anchor={
+            <Button
+              mode="outlined"
+              onPress={() => setSourceMenuVisible(true)}
+              style={styles.typeButton}
+              textColor="#fff"
+              icon="chevron-down"
+              disabled={sourcesLoading || !filteredSources.length}
+            >
+              {sourcesLoading ? 'Loading sources...' : 
+               !filteredSources.length ? 'No sources available' :
+               `Source: ${formData.source_name || 'Select a source'}`}
+            </Button>
+          }
+        >
+          {filteredSources.map(source => (
+            <Menu.Item 
+              key={source._id}
+              onPress={() => {
+                setFormData(prev => ({ 
+                  ...prev, 
+                  source_name: source.name,
+                  source_language: source.language || 'en'
+                }));
+                setSourceMenuVisible(false);
+              }} 
+              title={source.name} 
+            />
+          ))}
+        </Menu>
 
         <TextInput
           label="Source Language"
@@ -101,13 +165,13 @@ const AddContentScreen = ({ navigation }: { navigation: any }) => {
           {createNovel.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            'Add Novel'
+            'Add Content'
           )}
         </Button>
 
         {createNovel.isError && (
           <Text style={styles.errorText}>
-            Error: {createNovel.error instanceof Error ? createNovel.error.message : 'Failed to create novel'}
+            Error: {createNovel.error instanceof Error ? createNovel.error.message : 'Failed to create content'}
           </Text>
         )}
       </ScrollView>
@@ -133,6 +197,11 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
+    backgroundColor: '#333',
+  },
+  typeButton: {
+    marginBottom: 16,
+    borderColor: '#444',
     backgroundColor: '#333',
   },
   button: {

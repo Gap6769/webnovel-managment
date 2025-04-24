@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional, Union
-from ..models.novel import Chapter, ChapterListResponse, ChapterDownloadResponse, PyObjectId, NovelType
+from ..models.novel import NovelType, PyObjectId, NovelUpdate
+from ..models.chapter import Chapter, ChapterCreate, ChapterUpdate, ChapterListResponse, ChapterDownloadResponse, ReadingProgress, ReadingProgressCreate
 from ..db.database import get_database
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from ..services.epub_service import epub_service
@@ -10,40 +11,52 @@ import io
 from datetime import datetime
 from ..services.translation_service import translation_service
 from ..services.storage_service import storage_service
+from ..repositories.chapter_repository import ChapterRepository
+from ..repositories.novel_repository import NovelRepository
+from ..repositories.reading_progress_repository import ReadingProgressRepository
+from ..routers.users import get_current_user
+from ..models.user import UserInDB
 
 router = APIRouter()
-NOVEL_COLLECTION = "novels"
+
+def get_chapter_repository(db: AsyncIOMotorDatabase = Depends(get_database)) -> ChapterRepository:
+    return ChapterRepository(db)
+
+def get_novel_repository(db: AsyncIOMotorDatabase = Depends(get_database)) -> NovelRepository:
+    return NovelRepository(db)
+
+def get_reading_progress_repository(db: AsyncIOMotorDatabase = Depends(get_database)) -> ReadingProgressRepository:
+    return ReadingProgressRepository(db)
 
 @router.get("/{novel_id}/chapters", response_model=ChapterListResponse, tags=["chapters"])
 async def get_chapters(
     novel_id: PyObjectId,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Get paginated list of chapters for a novel."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    # Verify novel exists
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
 
-    # Get all chapters and sort them
-    chapters = novel.get("chapters", [])
-    total_chapters = len(chapters)
-    
-    # Sort chapters by chapter_number
-    chapters.sort(key=lambda x: x["chapter_number"], reverse=(sort_order == "desc"))
-    
-    # Calculate pagination
+    # Get chapters with pagination, sorting and total count in a single query
     skip = (page - 1) * page_size
+    chapters, total_chapters = await chapter_repository.get_by_novel_id(
+        novel_id, 
+        skip=skip, 
+        limit=page_size,
+        sort_order=sort_order
+    )
+    
+    # Calculate total pages
     total_pages = (total_chapters + page_size - 1) // page_size
     
-    # Get paginated chapters
-    paginated_chapters = chapters[skip:skip + page_size]
-    
     return ChapterListResponse(
-        chapters=paginated_chapters,
+        chapters=chapters,
         total=total_chapters,
         page=page,
         page_size=page_size,
@@ -54,46 +67,30 @@ async def get_chapters(
 async def download_chapter(
     novel_id: PyObjectId,
     chapter_number: int,
-    language: str = Query("en", regex="^(en|es)$"),
-    format: str = Query("epub", regex="^(epub|raw)$"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    language: str = Query("en", pattern="^(en|es)$"),
+    format: str = Query("epub", pattern="^(epub|raw)$"),
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Download a specific chapter."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    # Verify novel exists
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
 
-    # Find the chapter
-    chapter_dict = next((c for c in novel.get("chapters", []) if c["chapter_number"] == chapter_number), None)
-    if not chapter_dict:
+    # Get chapter
+    chapter = await chapter_repository.get_by_number(novel_id, chapter_number)
+    if not chapter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chapter {chapter_number} not found")
-
-    # Convert dictionary to Chapter object
-    chapter = Chapter(
-        title=chapter_dict["title"],
-        chapter_number=chapter_dict["chapter_number"],
-        chapter_title=chapter_dict.get("chapter_title"),
-        url=chapter_dict["url"],
-        read=chapter_dict.get("read", False),
-        downloaded=chapter_dict.get("downloaded", False)
-    )
 
     try:
         # Si es un manhwa, devolver el contenido en formato raw
-        if novel.get("type") == NovelType.MANHWA:
-            content = await scrape_chapter_content(str(chapter.url), novel["source_name"], str(novel_id), chapter_number)
+        if novel.type == NovelType.MANHWA:
+            content = await scrape_chapter_content(str(chapter.url), novel.source_name, str(novel_id), chapter_number)
             
             # Update chapter status
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.downloaded": True,
-                        "chapters.$.read": True
-                    }
-                }
-            )
+            await chapter_repository.mark_as_downloaded(chapter.id, str(chapter.url))
+            await chapter_repository.mark_as_read(chapter.id)
             
             return content
 
@@ -102,24 +99,17 @@ async def download_chapter(
             # Generate the EPUB
             epub_bytes, filename = await epub_service.create_epub(
                 novel_id=str(novel_id),
-                novel_title=novel["title"],
-                author=novel.get("author", "Unknown"),
+                novel_title=novel.title,
+                author=novel.author or "Unknown",
                 chapters=[chapter],
-                source_name=novel["source_name"],
+                source_name=novel.source_name,
                 single_chapter=chapter_number,
                 translate=(language == "es")
             )
 
             # Update chapter status
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.downloaded": True,
-                        "chapters.$.read": True
-                    }
-                }
-            )
+            await chapter_repository.mark_as_downloaded(chapter.id, str(chapter.url))
+            await chapter_repository.mark_as_read(chapter.id)
 
             return StreamingResponse(
                 io.BytesIO(epub_bytes),
@@ -130,33 +120,27 @@ async def download_chapter(
             )
         else:  # format == "raw"
             # Check if we have cached content
-            cached_content = await storage_service.get_chapter(novel, chapter_number, "raw", language)
+            cached_content = await storage_service.get_chapter(str(novel_id), chapter_number, "raw", language)
             if cached_content:
                 cleaned_content = cached_content
             else:
                 # Get raw chapter content
                 raw_content = await epub_service.fetch_chapter_content(
                     chapter_url=str(chapter.url),
-                    source_name=novel["source_name"],
+                    source_name=novel.source_name,
                     novel_id=str(novel_id),
                     chapter_number=chapter_number
                 )
                 cleaned_content = epub_service.clean_content(raw_content)
-                # Cache the content
-            
-                if language == "es" and novel["source_language"] == "en":
+                
+                if language == "es" and novel.source_language == "en":
                     cleaned_content = await translation_service.translate_text(cleaned_content)
                     
-                await storage_service.save_chapter(novel, chapter_number, cleaned_content, "raw", language)
-            await db[NOVEL_COLLECTION].update_one(
-                {"_id": novel_id, "chapters.chapter_number": chapter_number},
-                {
-                    "$set": {
-                        "chapters.$.downloaded": True,
-                        "chapters.$.read": True
-                    }
-                }
-            )
+                await storage_service.save_chapter(str(novel_id), chapter_number, cleaned_content, "raw", language)
+
+            # Update chapter status
+            await chapter_repository.mark_as_downloaded(chapter.id, str(chapter.url))
+            await chapter_repository.mark_as_read(chapter.id)
             
             return {
                 "title": chapter.title,
@@ -174,55 +158,42 @@ async def download_chapter(
 async def download_chapters(
     novel_id: PyObjectId,
     chapter_numbers: List[int],
-    language: str = Query("en", regex="^(en|es)$"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    language: str = Query("en", pattern="^(en|es)$"),
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Download multiple chapters."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    # Verify novel exists
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
 
-    # Filter chapters and convert to Chapter objects
-    chapter_dicts = [c for c in novel.get("chapters", []) if c["chapter_number"] in chapter_numbers]
-    if not chapter_dicts:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid chapters found")
+    # Get chapters
+    chapters = []
+    for chapter_number in chapter_numbers:
+        chapter = await chapter_repository.get_by_number(novel_id, chapter_number)
+        if chapter:
+            chapters.append(chapter)
 
-    # Convert dictionaries to Chapter objects
-    chapters = [
-        Chapter(
-            title=chapter_dict["title"],
-            chapter_number=chapter_dict["chapter_number"],
-            chapter_title=chapter_dict.get("chapter_title"),
-            url=chapter_dict["url"],
-            read=chapter_dict.get("read", False),
-            downloaded=chapter_dict.get("downloaded", False)
-        )
-        for chapter_dict in chapter_dicts
-    ]
+    if not chapters:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid chapters found")
 
     try:
         # Si es un manhwa, devolver el contenido de cada capítulo
-        if novel.get("type") == NovelType.MANHWA:
+        if novel.type == NovelType.MANHWA:
             chapters_content = []
             for chapter in chapters:
-                content = await scrape_chapter_content(str(chapter.url), novel["source_name"], str(novel_id), chapter.chapter_number)
+                content = await scrape_chapter_content(str(chapter.url), novel.source_name, str(novel_id), chapter.chapter_number)
                 chapters_content.append({
                     "chapter_number": chapter.chapter_number,
                     "title": chapter.title,
                     "content": content
                 })
             
-            # Update chapter status
-            await db[NOVEL_COLLECTION].update_many(
-                {"_id": novel_id, "chapters.chapter_number": {"$in": chapter_numbers}},
-                {
-                    "$set": {
-                        "chapters.$.downloaded": True,
-                        "chapters.$.read": True
-                    }
-                }
-            )
+            # Update chapter statuses
+            for chapter in chapters:
+                await chapter_repository.mark_as_downloaded(chapter.id, str(chapter.url))
+                await chapter_repository.mark_as_read(chapter.id)
             
             return {
                 "type": "manhwa",
@@ -233,23 +204,17 @@ async def download_chapters(
         # Generate the EPUB
         epub_bytes, filename = await epub_service.create_epub(
             novel_id=str(novel_id),
-            novel_title=novel["title"],
-            author=novel.get("author", "Unknown"),
+            novel_title=novel.title,
+            author=novel.author or "Unknown",
             chapters=chapters,
-            source_name=novel["source_name"],
+            source_name=novel.source_name,
             translate=(language == "es")
         )
 
-        # Update chapter status
-        await db[NOVEL_COLLECTION].update_many(
-            {"_id": novel_id, "chapters.chapter_number": {"$in": chapter_numbers}},
-            {
-                "$set": {
-                    "chapters.$.downloaded": True,
-                    "chapters.$.read": True
-                }
-            }
-        )
+        # Update chapter statuses
+        for chapter in chapters:
+            await chapter_repository.mark_as_downloaded(chapter.id, str(chapter.url))
+            await chapter_repository.mark_as_read(chapter.id)
 
         return StreamingResponse(
             io.BytesIO(epub_bytes),
@@ -267,19 +232,20 @@ async def download_chapters(
 @router.post("/{novel_id}/chapters/fetch", response_model=ChapterListResponse, tags=["chapters"])
 async def fetch_chapters_from_source(
     novel_id: PyObjectId,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    novel_repository: NovelRepository = Depends(get_novel_repository)
 ):
     """Fetch and update chapters from the source website."""
-    # Find the novel
-    novel = await db[NOVEL_COLLECTION].find_one({"_id": novel_id})
+    # Verify novel exists
+    novel = await novel_repository.get_by_id(novel_id)
     if novel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Novel with id {novel_id} not found")
 
     try:
         # Fetch chapters from source
         new_chapters = await scrape_chapters_for_novel(
-            str(novel["source_url"]),
-            novel["source_name"]
+            str(novel.source_url),
+            novel.source_name
         )
 
         if not new_chapters:
@@ -289,46 +255,41 @@ async def fetch_chapters_from_source(
             )
 
         # Get existing chapters to preserve their states
-        existing_chapters = novel.get("chapters", [])
-        existing_chapters_dict = {c["chapter_number"]: c for c in existing_chapters}
+        existing_chapters, total = await chapter_repository.get_by_novel_id(novel_id)
+        existing_chapters_dict = {c.chapter_number: c for c in existing_chapters}
 
-        # Convert to dictionary format and preserve states
-        new_chapters_dict = []
+        # Create new chapters
+        created_chapters = []
         for chapter in new_chapters:
             chapter_dict = {
+                "novel_id": novel_id,
                 "title": chapter.title,
                 "chapter_number": chapter.chapter_number,
                 "chapter_title": chapter.chapter_title,
                 "url": str(chapter.url),
-                "read": False,
-                "downloaded": False
+                "content_type": "novel" if novel.type == NovelType.NOVEL else "manhwa",
+                "language": novel.source_language or "en"
             }
             
             # If chapter exists, preserve its state
             if chapter.chapter_number in existing_chapters_dict:
                 existing_chapter = existing_chapters_dict[chapter.chapter_number]
-                chapter_dict["read"] = existing_chapter.get("read", False)
-                chapter_dict["downloaded"] = existing_chapter.get("downloaded", False)
+                chapter_dict["read"] = existing_chapter.read
+                chapter_dict["downloaded"] = existing_chapter.downloaded
+                chapter_dict["local_path"] = existing_chapter.local_path
             
-            new_chapters_dict.append(chapter_dict)
+            created_chapter = await chapter_repository.create(ChapterCreate(**chapter_dict))
+            created_chapters.append(created_chapter)
 
-        # Update novel with new chapters
-        await db[NOVEL_COLLECTION].update_one(
-            {"_id": novel_id},
-            {
-                "$set": {
-                    "chapters": new_chapters_dict,
-                    "last_updated_chapters": datetime.utcnow()
-                }
-            }
-        )
+        # Update novel's last_updated_chapters
+        await novel_repository.update(novel_id, NovelUpdate(last_updated_chapters=datetime.utcnow()))
 
         # Return the updated chapters
         return ChapterListResponse(
-            chapters=new_chapters_dict,
-            total=len(new_chapters_dict),
+            chapters=created_chapters,
+            total=len(created_chapters),
             page=1,
-            page_size=len(new_chapters_dict),
+            page_size=len(created_chapters),
             total_pages=1
         )
 
@@ -341,4 +302,53 @@ async def fetch_chapters_from_source(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error: {str(e)}"
-        ) 
+        )
+
+@router.post("/{novel_id}/chapters/{chapter_number}/progress", response_model=ReadingProgress, tags=["chapters"])
+async def update_reading_progress(
+    novel_id: PyObjectId,
+    chapter_number: int,
+    progress: float = Query(..., ge=0.0, le=1.0),
+    current_user: UserInDB = Depends(get_current_user),
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    reading_progress_repository: ReadingProgressRepository = Depends(get_reading_progress_repository)
+):
+    """Update reading progress for a chapter."""
+    # Get the chapter
+    chapter = await chapter_repository.get_by_number(novel_id, chapter_number)
+    if not chapter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chapter {chapter_number} not found")
+
+    # Create or update progress
+    progress_data = ReadingProgressCreate(
+        user_id=current_user.id,
+        chapter_id=chapter.id,
+        progress=progress
+    )
+    
+    return await reading_progress_repository.create_or_update(progress_data)
+
+@router.get("/{novel_id}/chapters/{chapter_number}/progress", response_model=Optional[ReadingProgress], tags=["chapters"])
+async def get_reading_progress(
+    novel_id: PyObjectId,
+    chapter_number: int,
+    current_user: UserInDB = Depends(get_current_user),
+    chapter_repository: ChapterRepository = Depends(get_chapter_repository),
+    reading_progress_repository: ReadingProgressRepository = Depends(get_reading_progress_repository)
+):
+    """Get reading progress for a chapter."""
+    # Get the chapter
+    chapter = await chapter_repository.get_by_number(novel_id, chapter_number)
+    if not chapter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chapter {chapter_number} not found")
+
+    return await reading_progress_repository.get_progress(current_user.id, chapter.id)
+
+@router.get("/{novel_id}/progress", response_model=List[ReadingProgress], tags=["chapters"])
+async def get_novel_progress(
+    novel_id: PyObjectId,
+    current_user: UserInDB = Depends(get_current_user),
+    reading_progress_repository: ReadingProgressRepository = Depends(get_reading_progress_repository)
+):
+    """Get all reading progress for a novel."""
+    return await reading_progress_repository.get_user_progress(current_user.id, novel_id) 

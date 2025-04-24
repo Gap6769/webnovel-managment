@@ -10,6 +10,7 @@ import NovelDetailsScreen from './src/screens/NovelDetailsScreen';
 import AddContentScreen from './src/screens/AddContentScreen';
 import ReaderScreen from './src/screens/ReaderScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import EditNovelScreen from './src/screens/EditNovelScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -68,6 +69,10 @@ export default function App() {
             <Stack.Screen 
               name="Settings" 
               component={SettingsScreen}
+            />
+            <Stack.Screen 
+              name="EditNovel" 
+              component={EditNovelScreen}
             />
           </Stack.Navigator>
         </NavigationContainer>

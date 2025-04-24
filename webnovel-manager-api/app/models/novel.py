@@ -99,7 +99,6 @@ class NovelUpdate(BaseModel):
 
 class NovelInDB(NovelBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    chapters: List[Chapter] = [] # Embedded list of chapters
     added_at: datetime = Field(default_factory=datetime.utcnow)
     last_updated_api: datetime = Field(default_factory=datetime.utcnow)
     last_updated_chapters: Optional[datetime] = None # Last time chapters were checked/updated from source
@@ -125,6 +124,11 @@ class NovelSummary(BaseModel):
     last_chapter_number: int
     read_chapters: int
     downloaded_chapters: int
+    source_language: Optional[str] = None
+    source_name: str
+    source_url: HttpUrl
+    
+    
     last_updated_chapters: Optional[datetime] = None
     added_at: datetime
 
@@ -132,6 +136,7 @@ class NovelDetail(NovelSummary):
     description: Optional[str] = None
     source_url: HttpUrl
     source_name: str
+    
     tags: List[str] = []
     reading_progress: float  # Percentage of read chapters
 

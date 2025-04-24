@@ -1,0 +1,454 @@
+{
+  "type": "manhwa",
+  "images": [
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/764/ez4pEX.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 1,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_001.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/7802/bY7Fa5.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 2,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_002.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/4382/jl95pR.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 3,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_003.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/2740/T4Esn3.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 4,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_004.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/8235/OlgEPP.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 5,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_005.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/6391/83kt8D.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 6,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_006.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/9642/Mj2fvI.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 7,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_007.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/7043/MZ3Sic.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 8,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_008.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/4018/4wRlxi.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 9,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_009.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/8501/zOyPRi.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 10,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_010.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/7347/D7JbQY.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 11,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_011.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/2273/H0WQno.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 13,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_013.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/1707/d5TcYR.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 15,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_015.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/8673/q3bPoM.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 17,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_017.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/1909/LQekbd.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 19,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_019.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/84/ubps0s.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 21,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_021.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/3009/RAYqhX.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 23,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_023.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/4844/luEF5j.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 25,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_025.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/7452/wVLm1y.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 27,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_027.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/125/L2L8uZ.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 29,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_029.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/665/nhUOc7.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 31,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_031.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/5556/2XjT7I.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 33,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_033.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/5429/Vt5KKX.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 35,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_035.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/779/4Q9c9w.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 37,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_037.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/5343/ascqXU.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 39,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_039.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/7800/koVOKd.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 41,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_041.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/7231/OLs9P9.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 43,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_043.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/4374/SN5XmG.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 45,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_045.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/5141/JPftRc.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 47,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_047.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/5797/wj29s1.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 49,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_049.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/692/paJWCF.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 51,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_051.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/1176/uVD80i.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 53,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_053.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/7446/8fxUQ3.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 55,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_055.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/2538/Naccro.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 57,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_057.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/7239/q2Mxk8.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 59,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_059.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/1803/v97V22.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 61,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_061.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/5845/AJuyFB.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 63,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_063.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/6378/cikCH0.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 65,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_065.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/7771/u0nK1q.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 67,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_067.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/2984/8hfB22.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 69,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_069.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/8039/HCxP8W.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 71,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_071.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/9931/7VZtiK.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 73,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_073.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/9473/cDWPTx.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 75,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_075.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/3308/sMVH2V.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 77,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_077.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/1303/yZcmGk.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 79,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_079.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/7127/GX0fRs.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 81,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_081.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/2697/gOj7EZ.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 83,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_083.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/221/0iBkPZ.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 85,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_085.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/1889/BBT2FN.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 87,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_087.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/517/bm3mhH.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 89,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_089.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/8983/KNVnR5.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 91,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_091.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img924/1203/lL23IP.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 93,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_093.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/2712/loOxDU.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 95,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_095.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/8108/PSGM1e.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 97,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_097.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img923/2333/qE1XCg.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 99,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_099.jpg"
+    },
+    {
+      "url": "https://cdn.statically.io/img/imagizer.imageshack.com/img922/6578/aVvawW.jpg",
+      "alt": "La Vida Despues de la Muerte",
+      "width": "0",
+      "height": "0",
+      "index": 101,
+      "local_path": "storage/novels/La Vida Despues de la Muerte - 68028689b83266139faa81e9/chapters/chapter_1_images/image_101.jpg"
+    }
+  ],
+  "total_images": 56
+}

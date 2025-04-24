@@ -52,11 +52,29 @@ export const useCreateNovel = () => {
 };
 
 export const useUpdateNovel = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
-    mutationFn: async ({ id, ...novel }: Partial<Novel> & { id: string }) => {
-      const response = await api.patch(`${API_ENDPOINTS.NOVELS}/${id}`, novel);
+    mutationFn: async ({ id, ...novelData }: {
+      id: string;
+      title?: string;
+      author?: string;
+      cover_image_url?: string;
+      status?: string;
+      type?: 'novel' | 'manhwa';
+      source_language?: string;
+      source_name?: string;
+      source_url?: string;
+      description?: string;
+      tags?: string[];
+    }) => {
+      const response = await api.patch(`/api/v1/novels/${id}`, novelData);
       return response.data;
     },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['novel', id] });
+      queryClient.invalidateQueries({ queryKey: ['novels'] });
+    }
   });
 };
 
@@ -74,12 +92,17 @@ export const useDeleteNovel = () => {
 };
 
 // Hooks para capítulos
-export const useChapters = (novelId: string) => {
+export const useChapters = (novelId: string, page: number = 1, sortOrder: 'asc' | 'desc' = 'desc') => {
   return useQuery({
-    queryKey: ['chapters', novelId],
+    queryKey: ['chapters', novelId, page, sortOrder],
     queryFn: async () => {
-      const response = await api.get(`${API_ENDPOINTS.NOVELS}/${novelId}/chapters`);
-      return response.data;
+      const response = await api.get(`${API_ENDPOINTS.NOVELS}/${novelId}/chapters?page=${page}&sort_order=${sortOrder}`);
+      return {
+        chapters: response.data.chapters,
+        total_pages: response.data.total_pages || 0,
+        page: response.data.page,
+        page_size: response.data.page_size
+      };
     },
   });
 };
@@ -146,5 +169,15 @@ export const useFetchChapters = () => {
       queryClient.invalidateQueries({ queryKey: ['chapters', novelId] });
       queryClient.invalidateQueries({ queryKey: ['novel', novelId] });
     }
+  });
+};
+
+export const useSources = () => {
+  return useQuery({
+    queryKey: ['sources'],
+    queryFn: async () => {
+      const response = await api.get('/api/v1/sources/');
+      return response.data;
+    },
   });
 }; 

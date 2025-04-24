@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-import os
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -14,17 +13,25 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # MongoDB settings
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "webnovel_manager")
+    MONGODB_URL: str
+    MONGODB_DB_NAME: str
 
-    # DeepL settings
-    DEEPL_API_KEY: str | None = os.getenv("DEEPL_API_KEY")
-    DEEPL_TARGET_LANGUAGE: str = "ES"  # Código de idioma para español
+    # Flags
+    IS_DEBUG: bool = False
+
+    # Translation settings
+    DEEPL_API_KEY: str | None = None
+    GOOGLE_TRANSLATE_API_KEY: str | None = None
+    TARGET_LANGUAGE: str = "ES"
+
+    # JWT settings
+    SECRET_KEY: str = "dev-secret-key-change-in-production"  # Default value for development
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     class Config:
         case_sensitive = True
-        # If using .env file:
-        # env_file = ".env"
-        # env_file_encoding = 'utf-8'
+        env_file = BASE_DIR / ".env"
+        env_file_encoding = 'utf-8'
 
 settings = Settings()
